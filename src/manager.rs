@@ -1,13 +1,13 @@
 mod users;
 mod vehicles;
 
+use actix_web::HttpResponse;
+use mongodb::bson::oid::ObjectId;
+use mongodb::{bson::doc, Database};
+use serde_json::{json, Value};
+use sysinfo::SystemExt;
 use users::User;
 use vehicles::Vehicle;
-use mongodb::{bson::doc, Database, options::FindOptions};
-use serde_json::{Value, json};
-use actix_web::HttpResponse;
-use sysinfo::SystemExt;
-use futures::stream::TryStreamExt;
 
 pub struct Manager {
     db: Database,
@@ -22,7 +22,7 @@ impl Manager {
         Manager {
             db: database,
             active_users: active_users,
-            active_vehicles: active_vehicles
+            active_vehicles: active_vehicles,
         }
     }
 
@@ -30,14 +30,36 @@ impl Manager {
         let user = User::parse_request(request);
         let collection = self.db.collection::<User>("users");
 
-        let response = match collection.find_one(doc!{"email": &user.email}, None).await {
+        // this processing can be further sped up by directly using doc!{"$or": [{"username": user.username}, {"email": user.email}]}
+        // but it would take away from the amount of detail which can be provided to the client
+        // compromising on it currently as sign up is a one time operation
+        match collection.find_one(doc! {"email": &user.email}, None).await {
             Ok(data) => match data {
-                Some(data) => HttpResponse::Conflict().body(json!({"error": format!("Another user already exists with the email {}", data.email)}).to_string()),
-                None => match collection.find_one(doc!{"username": &user.username}, None).await {
+                Some(data) => HttpResponse::Conflict().body(
+                    json!({
+                        "error":
+                            format!("Another user already exists with the email {}", data.email)
+                    })
+                    .to_string(),
+                ),
+                None => match collection
+                    .find_one(doc! {"username": &user.username}, None)
+                    .await
+                {
                     Ok(data) => match data {
-                        Some(data) => HttpResponse::Conflict().body(json!({"error": format!("Another user already exists with the username {}", data.username)}).to_string()),
+                        Some(data) => HttpResponse::Conflict().body(
+                            json!({
+                                "error":
+                                    format!(
+                                        "Another user already exists with the username {}",
+                                        data.username
+                                    )
+                            })
+                            .to_string(),
+                        ),
                         None => {
-                            let response = match collection.insert_one(User {
+                            match collection.insert_one(User {
+                                _id: Some(ObjectId::new()),
                                 name: user.name,
                                 username: user.username,
                                 password: user.password,
@@ -46,34 +68,45 @@ impl Manager {
                             }, None).await {
                                 Ok(data) => HttpResponse::Ok().body(json!({"success": "Successfully signed up user", "uid": data.inserted_id}).to_string()),
                                 Err(_) => HttpResponse::InternalServerError().body(json!({"error": "The server had an error trying to execute mongodb::Collection.insert_one()"}).to_string())
-                            };
-                            response
+                            }
                         }
                     },
-                    Err(_) => HttpResponse::InternalServerError().body("Error when trying to execute mongodb::Collection.find_one()")
-                }
+                    Err(_) => HttpResponse::InternalServerError()
+                        .body("Error when trying to execute mongodb::Collection.find_one()"),
+                },
             },
-            Err(_) => HttpResponse::InternalServerError().body("Error when trying to execute mongodb::Collection.find_one()")
-        };
-        response
+            Err(_) => HttpResponse::InternalServerError()
+                .body("Error when trying to execute mongodb::Collection.find_one()"),
+        }
     }
 
     pub async fn login(&self, request: Value) -> HttpResponse {
         let user = User::parse_request(request);
 
         let collection = self.db.collection::<User>("users");
-        
-        let find_options = FindOptions::builder().sort(doc! { "uid": 1 }).build();
 
-        let mut cursor = collection.find(doc!{"username": user.username, "password": user.password}, find_options).await.unwrap();
-        while let Some(result) = cursor.try_next().await.unwrap() {
-            println!("Found: {}", result.email);
+        match collection.find_one(doc!{"$or": [{"username": user.username}, {"email": user.email}]}, None).await {
+            Ok(data) => match data {
+                Some(data) => {
+                    if data.password != user.password { HttpResponse::Unauthorized().body(json!({"error": "Wrong credentials"}).to_string()) }
+                    else { HttpResponse::Ok().body(json!({
+                        "uid": match data._id {
+                            Some(id) => id,
+                            None => ObjectId::new()
+                        },
+                        "name": data.name,
+                        "username": data.username,
+                        "email": data.email,
+                        "vehicles": data.vehicles
+                    }).to_string()) }
+                },
+                None => HttpResponse::NotFound().body(json!({"error": "User with this username wasn't found on this server"}).to_string())
+            },
+            Err(_) => HttpResponse::InternalServerError().body(json!({"error": "There was an error when trying to execute mongodb::collection.find_one()"}).to_string())
         }
-        HttpResponse::Ok().body("kitti")
     }
 
     pub fn status(&self, data: Value) -> HttpResponse {
-
         let response = match serde_json::from_value(data["systemstat"].clone()) {
             Ok(data) => {
                 let response = match data {

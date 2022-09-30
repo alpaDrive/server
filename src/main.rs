@@ -12,14 +12,13 @@ async fn hello() -> impl Responder {
 
 #[get("/login")]
 async fn login(context: web::Data<Manager>, req_body: String) -> impl Responder {
-    // let response: HttpResponse = match serde_json::from_str(&req_body) {
-    //     Ok(data) => context.login(data).await,
-    //     Err(_) => HttpResponse::NotAcceptable().body(json!({
-    //         "error": "Failed to parse request. Make sure it is a valid JSON payload."
-    //     }).to_string())
-    // };
-    // response
-    HttpResponse::Ok().body("Being taken care of")
+    let response: HttpResponse = match serde_json::from_str(&req_body) {
+        Ok(data) => context.login(data).await,
+        Err(_) => HttpResponse::NotAcceptable().body(json!({
+            "error": "Failed to parse request. Make sure it is a valid JSON payload."
+        }).to_string())
+    };
+    response
 }
 
 #[get("/status")]

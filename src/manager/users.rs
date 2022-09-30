@@ -4,9 +4,11 @@ mod vehicles;
 use vehicles::Vehicle;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value};
+use mongodb::bson::oid::ObjectId;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct User {
+    pub _id: Option<ObjectId>,
     pub name: String,
     pub username: String,
     pub password: String,
@@ -28,6 +30,7 @@ impl User {
         }
 
         User {
+            _id: None,
             name: values[0].clone(),
             username: values[1].clone(),
             password: values[2].clone(),

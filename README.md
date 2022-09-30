@@ -24,7 +24,30 @@ The main web server built on Actix Web
         }
         ```
 
-2. Status
+2. Login
+    * Request type: GET
+    * Format: JSON
+        ```
+        {
+            "username": "<username>",
+            // "email": "<email>"
+            "password": "<password>"
+        }
+        ```
+    * Returns: An error if either the user doesn't exist or if the credentials are incorrect. Either one of username or email are required to complete the request. Or else the info of that specific user is returned
+        ```
+        {
+            "_id": {
+                "$oid": "63307b31d0c18856548cef9d"
+            },
+            "name": "\"testuser2\"",
+            "username": "\"testname2\"",
+            "email": "\"testemail2\"",
+            "vehicles": []
+        }
+        ```
+
+3. Status
     * Request type: GET
     * Format: JSON
         ```
