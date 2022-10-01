@@ -2,21 +2,40 @@
 mod vehicles;
 
 use vehicles::Vehicle;
+use serde::{Deserialize, Serialize};
+use serde_json::{Value};
+use mongodb::bson::oid::ObjectId;
 
+#[derive(Debug, Serialize, Deserialize)]
 pub struct User {
-    name: String,
-    username: String,
-    uid: String,
-    email: String,
-    vehicles: Vec<Vehicle>,
+    pub _id: Option<ObjectId>,
+    pub name: String,
+    pub username: String,
+    pub password: String,
+    pub email: String,
+    pub vehicles: Vec<Vehicle>,
 }
 
 impl User {
-    pub fn login() {
+    pub fn parse_request(request: Value) -> User {
+        let expected_fields = vec!["name", "username", "password", "email"];
+        let mut values = Vec::new();
 
-    }
+        for each in expected_fields {
+            let value = match serde_json::from_value::<Value>(request[each].clone()) {
+                Ok(data) => data.to_string(),
+                Err(_) => "".to_string()
+            };
+            values.push(value);
+        }
 
-    pub fn signup() {
-
+        User {
+            _id: None,
+            name: values[0].clone(),
+            username: values[1].clone(),
+            password: values[2].clone(),
+            email: values[3].clone(),
+            vehicles: Vec::new()
+        }
     }
 }
