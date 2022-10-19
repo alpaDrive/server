@@ -27,6 +27,7 @@ The main web server built on Actix Web
 2. Login
     * Request type: GET
     * Format: JSON
+
         ```
         {
             "username": "<username>",
@@ -65,6 +66,25 @@ The main web server built on Actix Web
             "memory_used": "2.01 GB",
             "total_swap": "2.10 GB",
             "swap_used": "0.00 GB"
+        }
+        ```
+4. Register a vehicle
+    * Request type: POST
+    * Format: JSON
+    
+        ```
+        {
+            "company": "BMW",
+            "model": "530i M sport"
+        }
+        ```
+    * Returns: The MongoDB `ObjectId()` of the document related to the vehicle. This ID can be used later on for reference in the stack
+        ```
+        {
+            "success": "Vehicle was registered",
+            "id": {
+                "$oid": "6337feae9e332e5b3ad192b7"
+            }
         }
         ```
 

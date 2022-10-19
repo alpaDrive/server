@@ -133,4 +133,17 @@ impl Manager {
         };
         response
     }
+
+    pub async fn registervehicle(&self, request: Value) -> HttpResponse {
+        let vehicle = Vehicle::parse_request(request);
+        let collection = self.db.collection::<Vehicle>("vehicles");
+        match collection.insert_one(vehicle, None).await {
+            Ok(data) => HttpResponse::Ok().body(json!({"success": "Vehicle was registered", "id": data.inserted_id}).to_string()),
+            Err(_) => HttpResponse::InternalServerError().body(json!({"error": "There was an error trying to execute mongodb::collection.insert_one()"}).to_string())
+        }
+    }
+
+    pub fn echo(&self) {
+        println!("I'm working")
+    }
 }
