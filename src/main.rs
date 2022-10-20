@@ -1,5 +1,4 @@
 mod manager;
-
 pub use crate::manager::Manager;
 use actix::{Actor, StreamHandler};
 use actix_web::{web, get, post, App, HttpResponse, HttpRequest, Error, HttpServer, Responder};

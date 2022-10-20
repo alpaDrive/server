@@ -1,13 +1,12 @@
-mod users;
-mod vehicles;
+extern crate types;
 
 use actix_web::HttpResponse;
 use mongodb::bson::oid::ObjectId;
 use mongodb::{bson::doc, Database};
 use serde_json::{json, Value};
 use sysinfo::SystemExt;
-use users::User;
-use vehicles::Vehicle;
+
+use types::actors::{users::User, vehicles::Vehicle};
 
 pub struct Manager {
     db: Database,
