@@ -1,33 +1,34 @@
-extern crate types;
 extern crate sockets;
+extern crate types;
 
-use std::str::FromStr;
-use actix_web::{web::Payload, HttpResponse, HttpRequest};
-use actix_web_actors::ws;
-use mongodb::{bson::{doc, oid::ObjectId}, Database};
-use serde_json::{json, Value};
 use actix::Addr;
-use uuid::Uuid;
+use actix_web::{web::Payload, HttpRequest, HttpResponse};
+use actix_web_actors::ws;
+use mongodb::{
+    bson::{doc, oid::ObjectId},
+    Database,
+};
+use serde_json::{json, Value};
 use sockets::{sockets::Lobby, ws::WsConn};
+use std::str::FromStr;
 use sysinfo::SystemExt;
 use types::actors::{users::User, vehicles::Vehicle};
+use uuid::Uuid;
 
 pub struct Manager {
     db: Database,
     active_users: usize,
     active_vehicles: usize,
-    lobby: Addr<Lobby>
+    lobby: Addr<Lobby>,
 }
 
-
 impl Manager {
-    
     pub fn start(database: Database, lobby: Addr<Lobby>) -> Manager {
         Manager {
             db: database,
             active_users: 0,
             active_vehicles: 0,
-            lobby: lobby
+            lobby: lobby,
         }
     }
 
@@ -60,9 +61,15 @@ impl Manager {
     }
 
     // Lobby management
-    pub async fn joinvehicle(&self, uid: String, request: &HttpRequest, stream: Payload) -> HttpResponse {
+
+    pub async fn joinvehicle(
+        &self,
+        uid: String,
+        request: &HttpRequest,
+        stream: Payload,
+    ) -> HttpResponse {
         let collection = self.db.collection::<Vehicle>("vehicles");
-            match collection.find_one(doc! {"_id": ObjectId::from_str(&uid.to_string().replace('"', "")).unwrap()}, None).await {
+        match collection.find_one(doc! {"_id": ObjectId::from_str(&uid.to_string().replace('"', "")).unwrap()}, None).await {
                 Ok(data) => match data {
                     Some(data) => {
                         let ws = WsConn::new(data._id.to_hex(), Uuid::new_v4().to_string(), self.lobby.clone(), true);
@@ -135,7 +142,7 @@ impl Manager {
 
     pub async fn login(&self, request: Value) -> HttpResponse {
         let user = User::parse_request(request);
-        
+
         let collection = self.db.collection::<User>("users");
         match collection.find_one(doc!{"$or": [{"username": user.username}, {"email": user.email}]}, None).await {
             Ok(data) => match data {
@@ -161,13 +168,9 @@ impl Manager {
     pub async fn registervehicle(&self, request: Value) -> HttpResponse {
         let vehicle = Vehicle::parse_request(request);
         let collection = self.db.collection::<Vehicle>("vehicles");
-            match collection.insert_one(vehicle, None).await {
+        match collection.insert_one(vehicle, None).await {
                 Ok(data) => HttpResponse::Ok().body(json!({"success": "Vehicle was registered", "id": data.inserted_id}).to_string()),
                 Err(_) => HttpResponse::InternalServerError().body(json!({"error": "There was an error trying to execute mongodb::collection.insert_one()"}).to_string())
             }
-    }
-
-    pub fn echo(&self) {
-        println!("I'm working")
     }
 }

@@ -28,40 +28,36 @@ async fn joinvehicle(req: HttpRequest, stream: web::Payload, context: web::Data<
     context.joinvehicle(path.into_inner(), &req, stream).await
 }
 
-
 // Account management routes
 
 #[get("/login")]
 async fn login(context: web::Data<Manager>, req_body: String) -> impl Responder {
-    let response: HttpResponse = match serde_json::from_str(&req_body) {
+    match serde_json::from_str(&req_body) {
         Ok(data) => context.login(data).await,
         Err(_) => HttpResponse::NotAcceptable().body(json!({
             "error": "Failed to parse request. Make sure it is a valid JSON payload."
         }).to_string())
-    };
-    response
+    }
 }
 
 #[get("/status")]
 async fn status(context: web::Data<Manager>, req_body: String) -> impl Responder {
-    let response: HttpResponse = match serde_json::from_str(&req_body) {
+    match serde_json::from_str(&req_body) {
             Ok(data) => context.status(data),
             Err(_) => HttpResponse::NotAcceptable().body(json!({
                 "error": "Failed to parse request. Make sure it is a valid JSON payload."
             }).to_string())
-        };
-    response
+        }
 }
 
 #[post("/signup")]
 async fn signup(context: web::Data<Manager>, req_body: String) -> impl Responder {
-     let response: HttpResponse = match serde_json::from_str(&req_body) {
+     match serde_json::from_str(&req_body) {
         Ok(data) => context.signup(data).await,
         Err(_) => HttpResponse::NotAcceptable().body(json!({
             "error": "Failed to parse request. Make sure it is a valid JSON payload."
         }).to_string())
-    };
-    response
+    }
 }
 
 #[post("/vehicle/register")]
@@ -77,11 +73,10 @@ async fn registervehicle(context: web::Data<Manager>, req_body:String) -> impl R
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let mut client_options = ClientOptions::parse("mongodb://localhost:8080/").await.unwrap();
-
     client_options.app_name = Some("alpadrive".to_string());
-
     let client = Client::with_options(client_options).unwrap();
     let database = client.database("alpadrive");
+
     let lobby = Lobby::default().start();
 
     HttpServer::new(move || {
