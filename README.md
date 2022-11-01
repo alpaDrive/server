@@ -87,6 +87,16 @@ The main web server built on Actix Web
             }
         }
         ```
+5. Create and join a vehicle room
+    * Request type: GET
+    * Format: Plain URL route
+
+        ```
+        https://url.com/join/vehicle/{uid}
+        ```
+        where `uid` is the `$oid` of the vehicle generated during registration
+    * Returns: A websocket connection upgrade to the room. The vehicle is in control of the room.
+    * Notes: Only one instance of a vehicle should connect at a time. More than one instance of the same vehicle should never attempt to connect and make a room. If this happens, the server may lose contact with the existing instance and will also never connect to the new instance.
 
 ## Setup dev environment in WSL
 
