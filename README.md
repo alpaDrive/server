@@ -5,7 +5,7 @@ The main web server built on Actix Web
 1. Signup
     * Request type: POST
     * Format: JSON
-        ```
+        ```json
         {
             "name": "testuser2",
             "username": "testname2",
@@ -16,7 +16,7 @@ The main web server built on Actix Web
         ```
     * Returns: The uid of the newly signed up user in MongoDB's ObjectID format
     
-        ```
+        ```json
         {
             "uid": {
                 "$oid": "<user-ID>"
@@ -28,7 +28,7 @@ The main web server built on Actix Web
     * Request type: GET
     * Format: JSON
 
-        ```
+        ```json
         {
             "username": "<username>",
             // "email": "<email>"
@@ -36,7 +36,7 @@ The main web server built on Actix Web
         }
         ```
     * Returns: An error if either the user doesn't exist or if the credentials are incorrect. Either one of username or email are required to complete the request. Or else the info of that specific user is returned
-        ```
+        ```json
         {
             "_id": {
                 "$oid": "63307b31d0c18856548cef9d"
@@ -51,14 +51,14 @@ The main web server built on Actix Web
 3. Status
     * Request type: GET
     * Format: JSON
-        ```
+        ```json
         {
             "systemstat": false
         }
         ```
     * Returns: Active websocket connections indicating number of users and number of vehicles. Also provides system info if `systemstat: true`
 
-        ```
+        ```json
         {
             "active_users": 0,
             "active_vehicles": 0,
@@ -72,14 +72,14 @@ The main web server built on Actix Web
     * Request type: POST
     * Format: JSON
     
-        ```
+        ```json
         {
             "company": "BMW",
             "model": "530i M sport"
         }
         ```
     * Returns: The MongoDB `ObjectId()` of the document related to the vehicle. This ID can be used later on for reference in the stack
-        ```
+        ```json
         {
             "success": "Vehicle was registered",
             "id": {
