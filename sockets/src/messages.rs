@@ -1,0 +1,36 @@
+
+use actix::prelude::{Message, Recipient};
+use serde_json::Value;
+
+//WsConn responds to this to pipe it through to the actual client
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct WsMessage(pub Value);
+
+//WsConn sends this to the lobby to say "put me in please"
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct Connect {
+    pub addr: Recipient<WsMessage>,
+    pub room_id: String,
+    pub self_id: String,
+    pub isvehicle: bool
+}
+
+//WsConn sends this to a lobby to say "take me out please"
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct Disconnect {
+    pub room_id: String,
+    pub id: String,
+    pub reason: Option<String>
+}
+
+//client sends this to the lobby for the lobby to echo out.
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct ClientActorMessage {
+    pub id: String,
+    pub msg: String,
+    pub room_id: String
+}

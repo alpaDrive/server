@@ -1,64 +1,93 @@
 mod manager;
 
 pub use crate::manager::Manager;
-use actix_web::{web, get, post, App, HttpResponse, HttpServer, Responder};
+use actix::Actor;
+use actix_web::{web::{self, Path}, get, post, App, HttpResponse, HttpRequest, HttpServer, Responder};
 use mongodb::{Client, options::ClientOptions};
 use serde_json::json;
+use sockets::sockets::Lobby;
+
+// try to convert all requests to reduce code
+// async fn parse_and_run(request: String, function: &dyn Fn(Value) -> HttpResponse) -> HttpResponse {
+//     let response: HttpResponse = match serde_json::from_str(&request) {
+//         Ok(data) => function(data),
+//         Err(_) => HttpResponse::NotAcceptable().body(json!({
+//             "error": "Failed to parse request. Make sure it is a valid JSON payload."
+//         }).to_string())
+//     };
+//     response
+// }
 
 #[get("/")]
 async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Hello world!")
 }
 
+#[get("/join/vehicle/{uid}")]
+async fn joinvehicle(req: HttpRequest, stream: web::Payload, context: web::Data<Manager>, path: Path<String>) -> impl Responder {
+    context.joinvehicle(path.into_inner(), &req, stream).await
+}
+
+// Account management routes
+
 #[get("/login")]
 async fn login(context: web::Data<Manager>, req_body: String) -> impl Responder {
-    let response: HttpResponse = match serde_json::from_str(&req_body) {
+    match serde_json::from_str(&req_body) {
         Ok(data) => context.login(data).await,
         Err(_) => HttpResponse::NotAcceptable().body(json!({
             "error": "Failed to parse request. Make sure it is a valid JSON payload."
         }).to_string())
-    };
-    response
+    }
 }
 
 #[get("/status")]
 async fn status(context: web::Data<Manager>, req_body: String) -> impl Responder {
-    let response: HttpResponse = match serde_json::from_str(&req_body) {
+    match serde_json::from_str(&req_body) {
             Ok(data) => context.status(data),
             Err(_) => HttpResponse::NotAcceptable().body(json!({
                 "error": "Failed to parse request. Make sure it is a valid JSON payload."
             }).to_string())
-        };
-    response
+        }
 }
 
 #[post("/signup")]
 async fn signup(context: web::Data<Manager>, req_body: String) -> impl Responder {
-     let response: HttpResponse = match serde_json::from_str(&req_body) {
+     match serde_json::from_str(&req_body) {
         Ok(data) => context.signup(data).await,
         Err(_) => HttpResponse::NotAcceptable().body(json!({
             "error": "Failed to parse request. Make sure it is a valid JSON payload."
         }).to_string())
-    };
-    response
+    }
+}
+
+#[post("/vehicle/register")]
+async fn registervehicle(context: web::Data<Manager>, req_body:String) -> impl Responder {
+    match serde_json::from_str(&req_body) {
+        Ok(data) => context.registervehicle(data).await,
+        Err(_) => HttpResponse::NotAcceptable().body(json!({
+            "error": "Failed to parse request. Make sure it is a valid JSON payload."
+        }).to_string())
+    }
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let mut client_options = ClientOptions::parse("mongodb://localhost:8080/").await.unwrap();
-
     client_options.app_name = Some("alpadrive".to_string());
-
     let client = Client::with_options(client_options).unwrap();
     let database = client.database("alpadrive");
 
+    let lobby = Lobby::default().start();
+
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(Manager::start(database.clone())))
+            .app_data(web::Data::new(Manager::start(database.clone(), lobby.clone())))
             .service(hello)
             .service(login)
             .service(status)
             .service(signup)
+            .service(registervehicle)
+            .service(joinvehicle)
     })
     .bind(("127.0.0.1", 7878))?
     .run()
