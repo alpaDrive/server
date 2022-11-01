@@ -1,46 +1,44 @@
 extern crate types;
 
-use actix::{fut, ActorContext};
-use actix::{Actor, Addr, Running, StreamHandler, WrapFuture, ActorFuture, ContextFutureSpawner};
+#[path ="./messages.rs"]
+mod messages;
+
+use actix::{fut, ActorContext, ActorFutureExt};
+use actix::{Actor, Addr, Running, StreamHandler, WrapFuture, ContextFutureSpawner};
 use actix::{AsyncContext, Handler};
 use actix_web_actors::ws;
 use actix_web_actors::ws::Message::Text;
 use std::time::{Duration, Instant};
-use uuid::Uuid;
-
-use types::actors::{vehicles::Vehicle, users::User};
+use crate::messages::{ClientActorMessage, Connect, Disconnect, WsMessage};
+use crate::sockets::Lobby;
+use serde_json::Value;
 
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
-enum Agent {
-    User,
-    Vehicle
-}
-
-struct WsConn {
-    id: Uuid,
+pub struct WsConn {
+    id: String,
     lobby_addr: Addr<Lobby>,
     hb: Instant,
-    room: Uuid,
-    agent: Agent
+    room: String,
+    is_vehicle: bool
 }
 
 impl WsConn {
-    pub fn new(room: Uuid, lobby: Addr<Lobby>, actor: Actor) -> WsConn {
+    pub fn new(room: String, id: String, lobby: Addr<Lobby>, is_vehicle: bool) -> WsConn {
         WsConn {
-            id: Uuid::new_v4(),
+            id: id,
             room,
             hb: Instant::now(),
             lobby_addr: lobby,
-            agent: Agent
+            is_vehicle: is_vehicle
         }
     }
     fn hb(&self, ctx: &mut ws::WebsocketContext<Self>) {
         ctx.run_interval(HEARTBEAT_INTERVAL, |act, ctx| {
             if Instant::now().duration_since(act.hb) > CLIENT_TIMEOUT {
                 // println!("Disconnecting failed heartbeat");
-                act.lobby_addr.do_send(Disconnect { id: act.id, room_id: act.room });
+                act.lobby_addr.do_send(Disconnect { id: act.id.clone(), room_id: act.room.clone(), reason: None });
                 ctx.stop();
                 return;
             }
@@ -61,8 +59,9 @@ impl Actor for WsConn {
         self.lobby_addr
             .send(Connect {
                 addr: addr.recipient(),
-                lobby_id: self.room,
-                self_id: self.id,
+                room_id: self.room.clone(),
+                self_id: self.id.clone(),
+                isvehicle: self.is_vehicle,
             })
             .into_actor(self)
             .then(|res, _, ctx| {
@@ -77,7 +76,7 @@ impl Actor for WsConn {
 
     // send disconnect message to the lobby and stop this actor
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
-        self.lobby_addr.do_send(Disconnect { id: self.id, room_id: self.room });
+        self.lobby_addr.do_send(Disconnect { id: self.id.clone(), room_id: self.room.clone(), reason: None });
         Running::Stop
     }
 }
@@ -104,11 +103,11 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsConn {
             }
             Ok(ws::Message::Nop) => (),
             Ok(Text(s)) => self.lobby_addr.do_send(ClientActorMessage {
-                id: self.id,
-                msg: s,
-                room_id: self.room
+                id: self.id.clone(),
+                msg: s.to_string(),
+                room_id: self.room.clone()
             }),
-            Err(e) => panic!(e),
+            Err(_) => {},
         }
     }
 }
@@ -120,6 +119,20 @@ impl Handler<WsMessage> for WsConn {
     type Result = ();
 
     fn handle(&mut self, msg: WsMessage, ctx: &mut Self::Context) {
-        ctx.text(msg.0);
+        match serde_json::from_value::<Value>(msg.0["disconnect"].clone()) {
+            Ok(data) => {
+                match data.as_null() {
+                    Some(_) => ctx.text(msg.0.to_string()),
+                    None => {
+                        ctx.close(Some(ws::CloseReason {
+                            code: ws::CloseCode::Normal,
+                            description: Some(data.to_string())
+                        }));
+                        ctx.stop();                        
+                    }
+                }
+            },
+            Err(_) => {}
+        };
     }
 }

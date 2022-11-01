@@ -1,43 +1,35 @@
 mod manager;
+
 pub use crate::manager::Manager;
-use actix::{Actor, StreamHandler};
-use actix_web::{web, get, post, App, HttpResponse, HttpRequest, Error, HttpServer, Responder};
-use actix_web_actors::ws;
+use actix::Actor;
+use actix_web::{web::{self, Path}, get, post, App, HttpResponse, HttpRequest, HttpServer, Responder};
 use mongodb::{Client, options::ClientOptions};
 use serde_json::json;
+use sockets::sockets::Lobby;
 
-struct PairSocket {
-    manager: web::Data<Manager>
-}
-
-impl Actor for PairSocket {
-    type Context = ws::WebsocketContext<Self>;
-}
-
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for PairSocket {
-    fn handle(&mut self, message: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-        match message {
-            Ok(ws::Message::Ping(msg)) => ctx.pong(&msg),
-            Ok(ws::Message::Text(text)) => {
-                self.manager.echo();
-                ctx.text(text)
-            },
-            Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
-            _ => ()
-        }
-    }
-}
+// try to convert all requests to reduce code
+// async fn parse_and_run(request: String, function: &dyn Fn(Value) -> HttpResponse) -> HttpResponse {
+//     let response: HttpResponse = match serde_json::from_str(&request) {
+//         Ok(data) => function(data),
+//         Err(_) => HttpResponse::NotAcceptable().body(json!({
+//             "error": "Failed to parse request. Make sure it is a valid JSON payload."
+//         }).to_string())
+//     };
+//     response
+// }
 
 #[get("/")]
 async fn hello() -> impl Responder {
     HttpResponse::Ok().body("Hello world!")
 }
 
-#[get("/vehicle/pair")]
-async fn pairvehicle(context: web::Data<Manager>, req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
-    let resp = ws::start(PairSocket {manager: context}, &req, stream);
-    resp
+#[get("/join/vehicle/{uid}")]
+async fn joinvehicle(req: HttpRequest, stream: web::Payload, context: web::Data<Manager>, path: Path<String>) -> impl Responder {
+    context.joinvehicle(path.into_inner(), &req, stream).await
 }
+
+
+// Account management routes
 
 #[get("/login")]
 async fn login(context: web::Data<Manager>, req_body: String) -> impl Responder {
@@ -90,16 +82,17 @@ async fn main() -> std::io::Result<()> {
 
     let client = Client::with_options(client_options).unwrap();
     let database = client.database("alpadrive");
+    let lobby = Lobby::default().start();
 
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(Manager::start(database.clone())))
+            .app_data(web::Data::new(Manager::start(database.clone(), lobby.clone())))
             .service(hello)
             .service(login)
             .service(status)
             .service(signup)
             .service(registervehicle)
-            .service(pairvehicle)
+            .service(joinvehicle)
     })
     .bind(("127.0.0.1", 7878))?
     .run()
