@@ -1,3 +1,6 @@
+extern crate sockets;
+extern crate types;
+
 use actix::Addr;
 use actix_web::{web::Payload, HttpRequest, HttpResponse};
 use actix_web_actors::ws;

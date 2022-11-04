@@ -128,6 +128,7 @@ impl Handler<WsMessage> for WsConn {
                 ctx.stop();
             },
             Action::Pair => {}
+
         };
     }
 }

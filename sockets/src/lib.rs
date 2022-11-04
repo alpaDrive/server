@@ -104,6 +104,7 @@ pub mod sockets {
                         self.insert(msg.self_id, msg.addr);
                     } else { self.send_disconnect("Vehicle isn't active at the moment. Try again later.", &msg.self_id); }
                 }
+
             }
         }
     }

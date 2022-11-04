@@ -9,6 +9,7 @@ pub enum Action {
 //WsConn responds to this to pipe it through to the actual client
 #[derive(Message)]
 #[rtype(result = "()")]
+
 pub struct WsMessage {
     pub message: String,
     pub id: String,
