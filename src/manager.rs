@@ -1,6 +1,3 @@
-extern crate sockets;
-extern crate types;
-
 use actix::Addr;
 use actix_web::{web::Payload, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
@@ -83,6 +80,44 @@ impl Manager {
                 },
                 Err(_) => HttpResponse::InternalServerError().body(json!({"error": "The server had an error trying to execute mongodb::Collection.insert_one()"}).to_string())
             }
+    }
+
+    pub async fn joinuser(
+        &self,
+        uid: String,
+        vid: String,
+        request: &HttpRequest,
+        stream: Payload,
+    ) -> HttpResponse {
+        let users = self.db.collection::<User>("users");
+        let vehicles = self.db.collection::<Vehicle>("vehicles");
+        match users.find_one(doc! {"_id": ObjectId::from_str(&uid.to_string().replace('"', "")).unwrap()}, None).await {
+            Ok(res) => match res {
+                Some(user) => {
+                   match vehicles.find_one(doc! {"_id": ObjectId::from_str(&vid.to_string().replace('"', "")).unwrap()}, None).await {
+                        Ok(res) => match res {
+                            Some(vehicle) => {
+                                if user.vehicles.contains(&vehicle) {
+                                    let ws = WsConn::new(uid, Uuid::new_v4().to_string(), self.lobby.clone(), false);
+                                    let response = match ws::start(ws, request, stream) {
+                                        Ok(response) => response,
+                                        Err(e) => HttpResponse::InternalServerError().body(json!({"error": "The server faced an internal error trying to create a room.", "stacktrace": format!("{:#?}", e)}).to_string())
+                                    };
+                                    response
+                                }
+                                else {
+                                    HttpResponse::Unauthorized().body(json!({"error": "This user has no access to the vehicle. Securely link it first."}).to_string())
+                                }
+                            },
+                            None => HttpResponse::NotFound().body(json!({"error": "There is no vehicle with the supplied ID. Consider registering it first."}).to_string())
+                        },
+                        Err(_) => HttpResponse::InternalServerError().body(json!({"error": "The server had an error trying to execute mongodb::Collection.find_one()"}).to_string())
+                   }
+                },
+                None => HttpResponse::NotFound().body(json!({"error": "There is no user with the supplied ID. Consider signing up first."}).to_string())          
+            },
+            Err(_) => HttpResponse::InternalServerError().body(json!({"error": "The server had an error trying to execute mongodb::Collection.find_one()"}).to_string())
+        }
     }
 
     // Account management

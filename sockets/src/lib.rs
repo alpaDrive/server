@@ -2,11 +2,10 @@ pub mod messages;
 pub mod ws;
 
 pub mod sockets {
-    use crate::messages::{ClientActorMessage, Connect, Disconnect, WsMessage};
+    use crate::messages::{ClientActorMessage, Connect, Disconnect, WsMessage, Action};
     use actix::prelude::{Actor, Context, Handler, Recipient};
     use std::collections::{HashMap, HashSet};
     use std::collections::hash_map::Entry;
-    use serde_json::json;
 
     pub struct Lobby {
         sessions: HashMap<String, Recipient<WsMessage>>,
@@ -28,14 +27,29 @@ pub mod sockets {
         fn send_message(&self, message: &str, id_to: &String) {
             if let Some(socket_recipient) = self.sessions.get(id_to) {
                 let _ = socket_recipient
-                    .do_send(WsMessage(json!({"message": message, "id": id_to})));
+                    .do_send(WsMessage {
+                        message: message.to_string(),
+                        id: id_to.to_string(),
+                        action: Action::Send
+                    });
             }
         }
         fn send_disconnect(&self, reason: &str, id_to: &String) {
             if let Some(socket_recipient) = self.sessions.get(id_to) {
                 let _ = socket_recipient
-                    .do_send(WsMessage(json!({"disconnect": reason, "id": id_to})));
+                    .do_send(WsMessage {
+                        message: reason.to_string(),
+                        id: id_to.to_string(),
+                        action: Action::Disconnect
+                    });
             }
+        }
+        fn insert(&mut self, self_id: String, addr: Recipient<WsMessage>) {
+            self.sessions.insert(
+                self_id.clone(),
+                addr.clone(),
+            );
+            self.send_message(&"Connected", &self_id);
         }
     }
 
@@ -74,25 +88,22 @@ pub mod sockets {
 
         fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
             // if it's a vehicle issuing connect
-            if msg.isvehicle {
-                match self.rooms.entry(msg.room_id) {
-                    Entry::Occupied(_) => {
-                        self.send_disconnect("Vehicle with the specified ID has already connected.", &msg.self_id);
-                    },
-                    Entry::Vacant(o) => {
+            match self.rooms.entry(msg.room_id) {
+                Entry::Occupied(mut o) => {
+                    if msg.isvehicle { self.send_disconnect("Vehicle with the specified ID has already connected.", &msg.self_id); }
+                    else {
+                        o.get_mut().insert(msg.self_id.clone());
+                        self.insert(msg.self_id, msg.addr);
+                    }
+                },
+                Entry::Vacant(o) => {
+                    if msg.isvehicle {
                         let mut set = HashSet::new();
                         set.insert(msg.self_id.clone());
                         o.insert(set);
-
-                        self.sessions.insert(
-                            msg.self_id.clone(),
-                            msg.addr.clone(),
-                        );
-                        self.send_message(&"Connected", &msg.self_id);
-                    }
-                }    
-            } else {
-                // user code goes here
+                        self.insert(msg.self_id, msg.addr);
+                    } else { self.send_disconnect("Vehicle isn't active at the moment. Try again later.", &msg.self_id); }
+                }
             }
         }
     }
