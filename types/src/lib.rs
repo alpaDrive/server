@@ -4,7 +4,7 @@ pub mod actors {
         use serde::{Deserialize, Serialize};
         use serde_json::Value;
 
-        #[derive(Debug, Serialize, Deserialize)]
+        #[derive(Debug, Serialize, Deserialize, PartialEq)]
         pub struct Vehicle {
             pub _id: ObjectId,
             pub company: String,

@@ -9,9 +9,8 @@ use actix::{AsyncContext, Handler};
 use actix_web_actors::ws;
 use actix_web_actors::ws::Message::Text;
 use std::time::{Duration, Instant};
-use crate::messages::{ClientActorMessage, Connect, Disconnect, WsMessage};
+use crate::messages::{ClientActorMessage, Connect, Disconnect, WsMessage, Action};
 use crate::sockets::Lobby;
-use serde_json::Value;
 
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -56,9 +55,10 @@ impl Actor for WsConn {
 
         // do everything to place this actor in the lobby
         let addr = ctx.address();
+        let recp = addr.recipient();
         self.lobby_addr
             .send(Connect {
-                addr: addr.recipient(),
+                addr: recp,
                 room_id: self.room.clone(),
                 self_id: self.id.clone(),
                 isvehicle: self.is_vehicle,
@@ -114,25 +114,21 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsConn {
 
 // this is how messages are sent to the client
 // the server puts a message in the actor's mailbox
-// so we send it straight to the client
 impl Handler<WsMessage> for WsConn {
     type Result = ();
 
     fn handle(&mut self, msg: WsMessage, ctx: &mut Self::Context) {
-        match serde_json::from_value::<Value>(msg.0["disconnect"].clone()) {
-            Ok(data) => {
-                match data.as_null() {
-                    Some(_) => ctx.text(msg.0.to_string()),
-                    None => {
-                        ctx.close(Some(ws::CloseReason {
-                            code: ws::CloseCode::Normal,
-                            description: Some(data.to_string())
-                        }));
-                        ctx.stop();                        
-                    }
-                }
+        match msg.action {
+            Action::Send => ctx.text(msg.message),
+            Action::Disconnect => {
+                ctx.close(Some(ws::CloseReason {
+                    code: ws::CloseCode::Normal,
+                    description: Some(msg.message)
+                }));
+                ctx.stop();
             },
-            Err(_) => {}
+            Action::Pair => {}
+
         };
     }
 }

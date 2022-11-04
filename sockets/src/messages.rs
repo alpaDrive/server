@@ -1,11 +1,20 @@
+use actix::prelude::{Message, Recipient};// use serde_json::Value;
 
-use actix::prelude::{Message, Recipient};
-use serde_json::Value;
+pub enum Action {
+    Send,
+    Disconnect,
+    Pair
+}
 
 //WsConn responds to this to pipe it through to the actual client
 #[derive(Message)]
 #[rtype(result = "()")]
-pub struct WsMessage(pub Value);
+
+pub struct WsMessage {
+    pub message: String,
+    pub id: String,
+    pub action: Action
+}
 
 //WsConn sends this to the lobby to say "put me in please"
 #[derive(Message)]
