@@ -4,7 +4,7 @@ pub mod actors {
         use serde::{Deserialize, Serialize};
         use serde_json::Value;
 
-        #[derive(Debug, Serialize, Deserialize)]
+        #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
         pub struct Vehicle {
             pub _id: ObjectId,
             pub company: String,
@@ -30,19 +30,18 @@ pub mod actors {
     }
 
     pub mod users {
-        use super::vehicles::Vehicle;
-        use mongodb::bson::oid::ObjectId;
+        use mongodb::bson::{oid::ObjectId, Document, doc};
         use serde::{Deserialize, Serialize};
         use serde_json::Value;
 
-        #[derive(Debug, Serialize, Deserialize)]
+        #[derive(Debug, Serialize, Deserialize, Clone)]
         pub struct User {
             pub _id: Option<ObjectId>,
             pub name: String,
             pub username: String,
             pub password: String,
             pub email: String,
-            pub vehicles: Vec<Vehicle>,
+            pub vehicles: Vec<ObjectId>,
         }
 
         impl User {
@@ -65,6 +64,16 @@ pub mod actors {
                     password: values[2].clone(),
                     email: values[3].clone(),
                     vehicles: Vec::new()
+                }
+            }
+            pub fn document(self) -> Document {
+                doc!{
+                    "_id": self._id,
+                    "name": self.name,
+                    "username": self.username,
+                    "password": self.password,
+                    "email": self.email,
+                    "vehicles": self.vehicles
                 }
             }
         }

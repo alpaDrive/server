@@ -28,6 +28,16 @@ async fn joinvehicle(req: HttpRequest, stream: web::Payload, context: web::Data<
     context.joinvehicle(path.into_inner(), &req, stream).await
 }
 
+#[get("/join/user/{vid}/{uid}")]
+async fn joinuser(req: HttpRequest, stream: web::Payload, context: web::Data<Manager>, path: Path<(String, String)>) -> impl Responder {
+    context.joinuser(path.0.clone(), path.1.clone(), &req, stream).await
+}
+
+#[get("/pair/{vid}/{uid}")]
+async fn pair(req: HttpRequest, stream: web::Payload, context: web::Data<Manager>, path: Path<(String, String)>) -> impl Responder {
+    context.pair(path.1.clone(), path.0.clone(), &req, stream).await
+}
+
 // Account management routes
 
 #[get("/login")]
@@ -88,6 +98,8 @@ async fn main() -> std::io::Result<()> {
             .service(signup)
             .service(registervehicle)
             .service(joinvehicle)
+            .service(joinuser)
+            .service(pair)
     })
     .bind(("127.0.0.1", 7878))?
     .run()

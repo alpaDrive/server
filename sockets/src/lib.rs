@@ -3,14 +3,16 @@ pub mod ws;
 
 pub mod sockets {
     use crate::messages::{ClientActorMessage, Connect, Disconnect, WsMessage};
+    use crate::ws::{Mode, Action};
     use actix::prelude::{Actor, Context, Handler, Recipient};
+    use actix_web_actors::ws::CloseCode;
     use std::collections::{HashMap, HashSet};
     use std::collections::hash_map::Entry;
-    use serde_json::json;
-
+    
     pub struct Lobby {
         sessions: HashMap<String, Recipient<WsMessage>>,
         rooms: HashMap<String, HashSet<String>>,      //room id  to list of users id
+        admins: HashMap<String, String>
     }
 
     impl Default for Lobby {
@@ -18,24 +20,64 @@ pub mod sockets {
             Lobby {
                 sessions: HashMap::new(),
                 rooms: HashMap::new(),
+                admins: HashMap::new()
             }
         }
     }
 
     impl Lobby {
         
-        // send message to client
+        // send message to user in the room
         fn send_message(&self, message: &str, id_to: &String) {
             if let Some(socket_recipient) = self.sessions.get(id_to) {
                 let _ = socket_recipient
-                    .do_send(WsMessage(json!({"message": message, "id": id_to})));
+                    .do_send(WsMessage {
+                        message: message.to_string(),
+                        id: id_to.to_string(),
+                        action: Action::Send
+                    });
             }
         }
-        fn send_disconnect(&self, reason: &str, id_to: &String) {
+        // send disconnect to an existing user in the room
+        fn send_disconnect(&self, reason: &str, id_to: &String, code: CloseCode) {
             if let Some(socket_recipient) = self.sessions.get(id_to) {
                 let _ = socket_recipient
-                    .do_send(WsMessage(json!({"disconnect": reason, "id": id_to})));
+                    .do_send(WsMessage {
+                        message: reason.to_string(),
+                        id: id_to.to_string(),
+                        action: Action::Disconnect(code)
+                    });
             }
+        }
+        // disconnect user before entering the room (special cases liek pair)
+        fn send_disconnect_standalone(&self, reason: String, recipient: &Recipient<WsMessage>, id_to: String, code: CloseCode) {
+            let _ = recipient.do_send(WsMessage {
+                message: reason,
+                id: id_to,
+                action: Action::Disconnect(code)
+            });
+        }
+        // send a message to the admin vehicle
+        fn message_vehicle(&mut self, room: String, message: String) {
+            let sessions = self.sessions.clone();
+            if let Entry::Occupied(admin) = self.admins.entry(room) {
+                if let Some(socket_recipient) = sessions.get(admin.get()) {
+                    let _ = socket_recipient
+                        .do_send(WsMessage {
+                            message: message,
+                            id: admin.get().to_string(),
+                            action: Action::Send
+                        });
+                }
+            }
+        }
+        // add an actor to the sessions map
+        fn insert(&mut self, self_id: String, addr: Recipient<WsMessage>) {
+            self.sessions.insert(
+                self_id.clone(),
+                addr.clone(),
+            );
+            self.send_message(&format!("{} is your id", self_id), &self_id);
         }
     }
 
@@ -49,18 +91,21 @@ pub mod sockets {
 
         fn handle(&mut self, msg: Disconnect, _: &mut Context<Self>) {
             if self.sessions.remove(&msg.id).is_some() {
-                self.rooms
-                    .get(&msg.room_id)
-                    .unwrap()
-                    .iter()
-                    .filter(|conn_id| *conn_id.to_owned() != msg.id)
-                    .for_each(|user_id| self.send_message(&format!("{} disconnected.", &msg.id), user_id));
-                if let Some(lobby) = self.rooms.get_mut(&msg.room_id) {
-                    if lobby.len() > 1 {
-                        lobby.remove(&msg.id);
-                    } else {
-                        //only one in the lobby, remove it entirely
+                if let Entry::Occupied(admin) = self.admins.entry(msg.room_id.clone()) {
+                    if &msg.id == admin.get() {
+                        self.rooms
+                        .get(&msg.room_id)
+                        .unwrap()
+                        .iter()
+                        .filter(|conn_id| *conn_id.to_owned() != msg.id)
+                        .for_each(|user_id| self.send_disconnect("Vehicle left and the room is being closed", user_id, CloseCode::Normal));
                         self.rooms.remove(&msg.room_id);
+                        self.admins.remove(&msg.room_id);
+                    } else {
+                        self.message_vehicle(msg.room_id.clone(), format!("{} has disconnected", msg.id));
+                        if let Some(lobby) = self.rooms.get_mut(&msg.room_id) {
+                            lobby.remove(&msg.id);
+                        }
                     }
                 }
             }
@@ -74,25 +119,41 @@ pub mod sockets {
 
         fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
             // if it's a vehicle issuing connect
-            if msg.isvehicle {
-                match self.rooms.entry(msg.room_id) {
-                    Entry::Occupied(_) => {
-                        self.send_disconnect("Vehicle with the specified ID has already connected.", &msg.self_id);
-                    },
-                    Entry::Vacant(o) => {
-                        let mut set = HashSet::new();
-                        set.insert(msg.self_id.clone());
-                        o.insert(set);
+            match self.rooms.entry(msg.room_id.clone()) {
+                Entry::Occupied(mut o) => {
+                    match msg.mode {
+                        Mode::Client => {
+                            o.get_mut().insert(msg.self_id.clone());
+                            self.insert(msg.self_id, msg.addr);
+                        },
+                        Mode::Admin => self.send_disconnect_standalone(String::from("Vehicle with the specified ID has already connected."), &msg.addr, msg.self_id, CloseCode::Policy),
+                        Mode::Pair(message) => {
+                            self.message_vehicle(msg.room_id, message.clone());
+                            self.send_disconnect_standalone(message, &msg.addr, msg.self_id, CloseCode::Normal);
 
-                        self.sessions.insert(
-                            msg.self_id.clone(),
-                            msg.addr.clone(),
-                        );
-                        self.send_message(&"Connected", &msg.self_id);
+                            // Issue #6
+                            // self cannot be moved into a closure. Can't be cloned either
+                            // So there is no way to make changes here properly and then send confirmation
+                            // actix_web::rt::spawn(async {
+                            //     // make db updates here
+                            //     self.send_disconnect(&*message, &msg.self_id, CloseCode::Normal);
+                            // });
+                        }
                     }
-                }    
-            } else {
-                // user code goes here
+                },
+                Entry::Vacant(o) => {
+                    match msg.mode {
+                        Mode::Client => self.send_disconnect_standalone(String::from("Vehicle isn't active at the moment. Try again later."), &msg.addr, msg.self_id, CloseCode::Protocol),
+                        Mode::Admin => {
+                            let mut set = HashSet::new();
+                            set.insert(msg.self_id.clone());
+                            o.insert(set);
+                            self.admins.insert(msg.room_id, msg.self_id.clone());
+                            self.insert(msg.self_id, msg.addr);
+                        },
+                        Mode::Pair(_) => self.send_disconnect_standalone(String::from("Vehicle isn't active at the moment. Try again later."), &msg.addr, msg.self_id, CloseCode::Protocol)
+                    }
+                }
             }
         }
     }

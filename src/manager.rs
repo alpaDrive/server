@@ -9,7 +9,10 @@ use mongodb::{
     Database,
 };
 use serde_json::{json, Value};
-use sockets::{sockets::Lobby, ws::WsConn};
+use sockets::{
+    sockets::Lobby,
+    ws::{Mode, WsConn},
+};
 use std::str::FromStr;
 use sysinfo::SystemExt;
 use types::actors::{users::User, vehicles::Vehicle};
@@ -72,17 +75,54 @@ impl Manager {
         match collection.find_one(doc! {"_id": ObjectId::from_str(&uid.to_string().replace('"', "")).unwrap()}, None).await {
                 Ok(data) => match data {
                     Some(data) => {
-                        let ws = WsConn::new(data._id.to_hex(), Uuid::new_v4().to_string(), self.lobby.clone(), true);
-                        let response = match ws::start(ws, request, stream) {
+                        let ws = WsConn::new(data._id.to_hex(), Uuid::new_v4().to_string(), self.lobby.clone(), Mode::Admin);
+                        match ws::start(ws, request, stream) {
                             Ok(response) => response,
                             Err(e) => HttpResponse::InternalServerError().body(json!({"error": "The server faced an internal error trying to create a room.", "stacktrace": format!("{:#?}", e)}).to_string())
-                        };
-                        response
+                        }
                     },
                     None => HttpResponse::NotFound().body(json!({"error": "There is no vehicle with the supplied ID. Consider registering it first at /vehicle/register."}).to_string())          
                 },
                 Err(_) => HttpResponse::InternalServerError().body(json!({"error": "The server had an error trying to execute mongodb::Collection.insert_one()"}).to_string())
             }
+    }
+
+    pub async fn joinuser(
+        &self,
+        uid: String,
+        vid: String,
+        request: &HttpRequest,
+        stream: Payload,
+    ) -> HttpResponse {
+        let users = self.db.collection::<User>("users");
+        let vehicles = self.db.collection::<Vehicle>("vehicles");
+        match users.find_one(doc! {"_id": ObjectId::from_str(&uid.to_string().replace('"', "")).unwrap()}, None).await {
+            Ok(res) => match res {
+                Some(user) => {
+                   match vehicles.find_one(doc! {"_id": ObjectId::from_str(&vid.to_string().replace('"', "")).unwrap()}, None).await {
+                        Ok(res) => match res {
+                            Some(vehicle) => {
+                                if user.vehicles.contains(&vehicle._id) {
+                                    let ws = WsConn::new(vid, Uuid::new_v4().to_string(), self.lobby.clone(), Mode::Client);
+                                    let response = match ws::start(ws, request, stream) {
+                                        Ok(response) => response,
+                                        Err(e) => HttpResponse::InternalServerError().body(json!({"error": "The server faced an internal error trying to create a room.", "stacktrace": format!("{:#?}", e)}).to_string())
+                                    };
+                                    response
+                                }
+                                else {
+                                    HttpResponse::Unauthorized().body(json!({"error": "This user has no access to the vehicle. Securely link it first."}).to_string())
+                                }
+                            },
+                            None => HttpResponse::NotFound().body(json!({"error": "There is no vehicle with the supplied ID. Consider registering it first."}).to_string())
+                        },
+                        Err(_) => HttpResponse::InternalServerError().body(json!({"error": "The server had an error trying to execute mongodb::Collection.find_one()"}).to_string())
+                   }
+                },
+                None => HttpResponse::NotFound().body(json!({"error": "There is no user with the supplied ID. Consider signing up first."}).to_string())          
+            },
+            Err(_) => HttpResponse::InternalServerError().body(json!({"error": "The server had an error trying to execute mongodb::Collection.find_one()"}).to_string())
+        }
     }
 
     // Account management
@@ -172,5 +212,45 @@ impl Manager {
                 Ok(data) => HttpResponse::Ok().body(json!({"success": "Vehicle was registered", "id": data.inserted_id}).to_string()),
                 Err(_) => HttpResponse::InternalServerError().body(json!({"error": "There was an error trying to execute mongodb::collection.insert_one()"}).to_string())
             }
+    }
+
+    pub async fn pair(&self, uid: String, vid: String, request: &HttpRequest, stream: Payload,) -> HttpResponse {
+        let users = self.db.collection::<User>("users");
+        let vehicles = self.db.collection::<Vehicle>("vehicles");
+
+        match users.find_one(doc! {"_id": ObjectId::from_str(&uid.to_string().replace('"', "")).unwrap()}, None).await {
+            Ok(result) => {
+                match result {
+                    Some(user) => {
+                        match vehicles.find_one(doc! {"_id": ObjectId::from_str(&vid.to_string().replace('"', "")).unwrap()}, None).await {
+                            Ok(result) => {
+                                match result {
+                                    Some(vehicle) => {
+                                        let mut list = user.vehicles.clone();
+                                        list.insert(00, vehicle._id);
+                                        let message = match users.update_one(user.document(), doc! {"$set": {"vehicles": list}}, None).await {
+                                            Ok(result) => {
+                                                if result.modified_count > 0 { String::from("Pair successful") }
+                                                else { String::from("Database had an unknown error") }
+                                            },
+                                            Err(e) => format!("Database reported an error: {:#?}", e)
+                                        };
+                                        let ws = WsConn::new(vid.clone(), Uuid::new_v4().to_string(), self.lobby.clone(), Mode::Pair(json!({"message": message.clone(), "uid": uid.clone(), "vid": vid.clone()}).to_string()));
+                                        match ws::start(ws, request, stream) {
+                                            Ok(response) => response,
+                                            Err(e) => HttpResponse::InternalServerError().body(json!({"error": "The server faced an internal error trying to create a room.", "stacktrace": format!("{:#?}", e)}).to_string())
+                                        }
+                                    },
+                                    None => HttpResponse::NotFound().body(json!({"error": "There is no vehicle with the specified ID.", "suggestion": "Register the vehicle at /vehicle/register"}).to_string())
+                                }
+                            },
+                            Err(e) => HttpResponse::InternalServerError().body(json!({"error": "There was an error trying to execute mongodb::collection.find_one()", "stacktrace": format!("{:#?}", e)}).to_string())
+                        }
+                    },
+                    None => HttpResponse::NotFound().body(json!({"error": "There is no user with the specified ID.", "suggestion": "Sign up the user at /signup"}).to_string())
+                }
+            },
+            Err(e) => HttpResponse::InternalServerError().body(json!({"error": "There was an error trying to execute mongodb::collection.find_one()", "stacktrace": format!("{:#?}", e)}).to_string())
+        }
     }
 }

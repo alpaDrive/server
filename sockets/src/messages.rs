@@ -1,11 +1,15 @@
-
-use actix::prelude::{Message, Recipient};
-use serde_json::Value;
+use actix::prelude::{Message, Recipient};// use serde_json::Value;
+use crate::ws::{Mode, Action};
 
 //WsConn responds to this to pipe it through to the actual client
 #[derive(Message)]
 #[rtype(result = "()")]
-pub struct WsMessage(pub Value);
+
+pub struct WsMessage {
+    pub message: String,
+    pub id: String,
+    pub action: Action
+}
 
 //WsConn sends this to the lobby to say "put me in please"
 #[derive(Message)]
@@ -14,7 +18,7 @@ pub struct Connect {
     pub addr: Recipient<WsMessage>,
     pub room_id: String,
     pub self_id: String,
-    pub isvehicle: bool
+    pub mode: Mode
 }
 
 //WsConn sends this to a lobby to say "take me out please"
