@@ -9,7 +9,7 @@ use serde::Deserialize;
 use sockets::sockets::Lobby;
 
 #[derive(Deserialize)]
-struct JoinUser {
+struct Args {
     uid: String,
     vid: String
 }
@@ -36,8 +36,13 @@ async fn joinvehicle(req: HttpRequest, stream: web::Payload, context: web::Data<
 }
 
 #[get("/join/user/{uid}/{vid}")]
-async fn joinuser(req: HttpRequest, stream: web::Payload, context: web::Data<Manager>, path: Path<JoinUser>) -> impl Responder {
+async fn joinuser(req: HttpRequest, stream: web::Payload, context: web::Data<Manager>, path: Path<Args>) -> impl Responder {
     context.joinuser(path.uid.clone(), path.vid.clone(), &req, stream).await
+}
+
+#[get("/pair/{vid}/{uid}")]
+async fn pair(req: HttpRequest, stream: web::Payload, context: web::Data<Manager>, path: Path<(String, String)>) -> impl Responder {
+    context.pair(path.1.clone(), path.0.clone(), &req, stream).await
 }
 
 // Account management routes
@@ -100,6 +105,8 @@ async fn main() -> std::io::Result<()> {
             .service(signup)
             .service(registervehicle)
             .service(joinvehicle)
+            .service(joinuser)
+            .service(pair)
     })
     .bind(("127.0.0.1", 7878))?
     .run()

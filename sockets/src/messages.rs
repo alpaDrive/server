@@ -1,8 +1,10 @@
 use actix::prelude::{Message, Recipient};// use serde_json::Value;
+use actix_web_actors::ws::CloseCode;
+use crate::ws::Mode;
 
 pub enum Action {
     Send,
-    Disconnect,
+    Disconnect(CloseCode),
     Pair
 }
 
@@ -23,7 +25,7 @@ pub struct Connect {
     pub addr: Recipient<WsMessage>,
     pub room_id: String,
     pub self_id: String,
-    pub isvehicle: bool
+    pub mode: Mode
 }
 
 //WsConn sends this to a lobby to say "take me out please"

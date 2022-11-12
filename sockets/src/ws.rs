@@ -15,22 +15,29 @@ use crate::sockets::Lobby;
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
+#[derive(Clone)]
+pub enum Mode {
+    Client,
+    Admin,
+    Pair(String)
+}
+
 pub struct WsConn {
     id: String,
     lobby_addr: Addr<Lobby>,
     hb: Instant,
     room: String,
-    is_vehicle: bool
+    mode: Mode
 }
 
 impl WsConn {
-    pub fn new(room: String, id: String, lobby: Addr<Lobby>, is_vehicle: bool) -> WsConn {
+    pub fn new(room: String, id: String, lobby: Addr<Lobby>, mode: Mode) -> WsConn {
         WsConn {
             id: id,
             room,
             hb: Instant::now(),
             lobby_addr: lobby,
-            is_vehicle: is_vehicle
+            mode
         }
     }
     fn hb(&self, ctx: &mut ws::WebsocketContext<Self>) {
@@ -61,7 +68,7 @@ impl Actor for WsConn {
                 addr: recp,
                 room_id: self.room.clone(),
                 self_id: self.id.clone(),
-                isvehicle: self.is_vehicle,
+                mode: self.mode.clone(),
             })
             .into_actor(self)
             .then(|res, _, ctx| {
@@ -120,15 +127,14 @@ impl Handler<WsMessage> for WsConn {
     fn handle(&mut self, msg: WsMessage, ctx: &mut Self::Context) {
         match msg.action {
             Action::Send => ctx.text(msg.message),
-            Action::Disconnect => {
+            Action::Disconnect(code) => {
                 ctx.close(Some(ws::CloseReason {
-                    code: ws::CloseCode::Normal,
+                    code: code,
                     description: Some(msg.message)
                 }));
                 ctx.stop();
             },
             Action::Pair => {}
-
         };
     }
 }
