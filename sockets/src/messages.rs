@@ -1,12 +1,5 @@
 use actix::prelude::{Message, Recipient};// use serde_json::Value;
-use actix_web_actors::ws::CloseCode;
-use crate::ws::Mode;
-
-pub enum Action {
-    Send,
-    Disconnect(CloseCode),
-    Pair
-}
+use crate::ws::{Mode, Action};
 
 //WsConn responds to this to pipe it through to the actual client
 #[derive(Message)]

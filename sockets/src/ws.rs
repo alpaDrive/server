@@ -7,9 +7,9 @@ use actix::{fut, ActorContext, ActorFutureExt};
 use actix::{Actor, Addr, Running, StreamHandler, WrapFuture, ContextFutureSpawner};
 use actix::{AsyncContext, Handler};
 use actix_web_actors::ws;
-use actix_web_actors::ws::Message::Text;
+use actix_web_actors::ws::{Message::Text, CloseCode};
 use std::time::{Duration, Instant};
-use crate::messages::{ClientActorMessage, Connect, Disconnect, WsMessage, Action};
+use crate::messages::{ClientActorMessage, Connect, Disconnect, WsMessage};
 use crate::sockets::Lobby;
 
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -20,6 +20,12 @@ pub enum Mode {
     Client,
     Admin,
     Pair(String)
+}
+
+pub enum Action {
+    Send,
+    Disconnect(CloseCode),
+    Pair
 }
 
 pub struct WsConn {

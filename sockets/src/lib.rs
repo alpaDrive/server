@@ -2,8 +2,8 @@ pub mod messages;
 pub mod ws;
 
 pub mod sockets {
-    use crate::messages::{ClientActorMessage, Connect, Disconnect, WsMessage, Action};
-    use crate::ws::Mode;
+    use crate::messages::{ClientActorMessage, Connect, Disconnect, WsMessage};
+    use crate::ws::{Mode, Action};
     use actix::prelude::{Actor, Context, Handler, Recipient};
     use actix_web_actors::ws::CloseCode;
     use std::collections::{HashMap, HashSet};
