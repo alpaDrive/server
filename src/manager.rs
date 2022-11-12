@@ -114,10 +114,7 @@ impl Manager {
                                     HttpResponse::Unauthorized().body(json!({"error": "This user has no access to the vehicle. Securely link it first."}).to_string())
                                 }
                             },
-                            None => {
-                                println!("No vehicle with {}", vid);
-                                HttpResponse::NotFound().body(json!({"error": "There is no vehicle with the supplied ID. Consider registering it first."}).to_string())
-                            }
+                            None => HttpResponse::NotFound().body(json!({"error": "There is no vehicle with the supplied ID. Consider registering it first."}).to_string())
                         },
                         Err(_) => HttpResponse::InternalServerError().body(json!({"error": "The server had an error trying to execute mongodb::Collection.find_one()"}).to_string())
                    }
