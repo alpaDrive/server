@@ -5,14 +5,7 @@ use actix::Actor;
 use actix_web::{web::{self, Path}, get, post, App, HttpResponse, HttpRequest, HttpServer, Responder};
 use mongodb::{Client, options::ClientOptions};
 use serde_json::json;
-use serde::Deserialize;
 use sockets::sockets::Lobby;
-
-#[derive(Deserialize)]
-struct Args {
-    uid: String,
-    vid: String
-}
 
 // try to convert all requests to reduce code
 // async fn parse_and_run(request: String, function: &dyn Fn(Value) -> HttpResponse) -> HttpResponse {
@@ -35,9 +28,9 @@ async fn joinvehicle(req: HttpRequest, stream: web::Payload, context: web::Data<
     context.joinvehicle(path.into_inner(), &req, stream).await
 }
 
-#[get("/join/user/{uid}/{vid}")]
-async fn joinuser(req: HttpRequest, stream: web::Payload, context: web::Data<Manager>, path: Path<Args>) -> impl Responder {
-    context.joinuser(path.uid.clone(), path.vid.clone(), &req, stream).await
+#[get("/join/user/{vid}/{uid}")]
+async fn joinuser(req: HttpRequest, stream: web::Payload, context: web::Data<Manager>, path: Path<(String, String)>) -> impl Responder {
+    context.joinuser(path.0.clone(), path.1.clone(), &req, stream).await
 }
 
 #[get("/pair/{vid}/{uid}")]

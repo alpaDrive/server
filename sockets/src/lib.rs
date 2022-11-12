@@ -55,24 +55,26 @@ pub mod sockets {
                 action: Action::Disconnect(code)
             });
         }
+        // helper to return the id of the vehicle in a room
+        fn get_vehicle_id(&mut self, room: String) -> Option<&String> {
+            if let Entry::Occupied(o) = self.rooms.entry(room) {
+                let mut temp = o.into_mut().iter().take(1);
+                temp.next()
+            } else { None }
+        }
         // send a message to the admin vehicle
         fn message_vehicle(&mut self, room: String, message: String) {
-            match self.rooms.entry(room) {
-                Entry::Occupied(o) => {
-                    for x in o.get().iter() {
-                        if let Some(socket_recipient) = self.sessions.get(x) {
-                            let _ = socket_recipient
-                                .do_send(WsMessage {
-                                    message: message,
-                                    id: x.to_string(),
-                                    action: Action::Send
-                                });
-                        }
-                        break;
-                    }
-                },
-                Entry::Vacant(_) => {}
-            };
+            let sessions = self.sessions.clone();
+            if let Some(room) = self.get_vehicle_id(room) {
+                if let Some(socket_recipient) = sessions.get(room) {
+                    let _ = socket_recipient
+                        .do_send(WsMessage {
+                            message: message,
+                            id: room.to_string(),
+                            action: Action::Send
+                        });
+                }
+            }
         }
         // add an actor to the sessions map
         fn insert(&mut self, self_id: String, addr: Recipient<WsMessage>) {

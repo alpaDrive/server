@@ -103,7 +103,7 @@ impl Manager {
                         Ok(res) => match res {
                             Some(vehicle) => {
                                 if user.vehicles.contains(&vehicle._id) {
-                                    let ws = WsConn::new(uid, Uuid::new_v4().to_string(), self.lobby.clone(), Mode::Client);
+                                    let ws = WsConn::new(vid, Uuid::new_v4().to_string(), self.lobby.clone(), Mode::Client);
                                     let response = match ws::start(ws, request, stream) {
                                         Ok(response) => response,
                                         Err(e) => HttpResponse::InternalServerError().body(json!({"error": "The server faced an internal error trying to create a room.", "stacktrace": format!("{:#?}", e)}).to_string())
@@ -114,7 +114,10 @@ impl Manager {
                                     HttpResponse::Unauthorized().body(json!({"error": "This user has no access to the vehicle. Securely link it first."}).to_string())
                                 }
                             },
-                            None => HttpResponse::NotFound().body(json!({"error": "There is no vehicle with the supplied ID. Consider registering it first."}).to_string())
+                            None => {
+                                println!("No vehicle with {}", vid);
+                                HttpResponse::NotFound().body(json!({"error": "There is no vehicle with the supplied ID. Consider registering it first."}).to_string())
+                            }
                         },
                         Err(_) => HttpResponse::InternalServerError().body(json!({"error": "The server had an error trying to execute mongodb::Collection.find_one()"}).to_string())
                    }
