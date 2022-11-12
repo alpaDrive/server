@@ -68,6 +68,7 @@ The main web server built on Actix Web
             "swap_used": "0.00 GB"
         }
         ```
+        
 4. ### Register a vehicle
     * Request type: POST
     * Format: JSON
@@ -87,7 +88,9 @@ The main web server built on Actix Web
             }
         }
         ```
+        
 5. ### Create and join a vehicle room
+
     * Request type: GET
     * Format: Plain URL route
 
