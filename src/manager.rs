@@ -103,7 +103,7 @@ impl Manager {
                         Ok(res) => match res {
                             Some(vehicle) => {
                                 if user.vehicles.contains(&vehicle._id) {
-                                    let ws = WsConn::new(vid, Uuid::new_v4().to_string(), self.lobby.clone(), Sender::Client);
+                                    let ws = WsConn::new(vid, Uuid::new_v4().to_string(), self.lobby.clone(), Sender::Client(uid));
                                     let response = match ws::start(ws, request, stream) {
                                         Ok(response) => response,
                                         Err(e) => HttpResponse::InternalServerError().body(json!({"error": "The server faced an internal error trying to create a room.", "stacktrace": format!("{:#?}", e)}).to_string())

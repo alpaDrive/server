@@ -11,6 +11,7 @@ use actix::{AsyncContext, Handler};
 use actix_web_actors::ws;
 use actix_web_actors::ws::{CloseCode, Message::Text};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -31,7 +32,7 @@ pub enum Mode {
 // used by lobby to handle connect requests appropriately
 #[derive(Clone)]
 pub enum Sender {
-    Client,
+    Client(String),
     Admin,
     Pair(String),
 }
@@ -48,7 +49,7 @@ pub enum Action {
 pub struct ClientMessage {
     mode: String,
     pub vid: String,
-    pub uid: String,
+    pub conn_id: String,
     pub status: String,
     pub message: String,
     pub attachments: Vec<String>,
@@ -63,12 +64,22 @@ pub struct WsConn {
 }
 
 impl ClientMessage {
+    pub fn to_string(&self) -> String {
+        json!({
+            "mode": self.mode,
+            "conn_id": self.conn_id,
+            "vid": self.vid,
+            "status": self.status,
+            "message": self.message,
+            "attachments": self.attachments
+        }).to_string()
+    }
     fn get_mode(&self) -> Result<Mode, &str> {
         // just declaring these common fields to avoid repetition atm. Change later flexibly in the map
-        let common = vec![self.status.clone(), self.uid.clone(), self.message.clone()];
+        let common = vec![self.status.clone(), self.conn_id.clone(), self.message.clone()];
         let map = HashMap::from([
             ("broadcast", (vec![self.status.clone(), self.message.clone()], Mode::Broadcast)),
-            ("whisper", (common.clone(), Mode::Whisper(self.uid.clone()))),
+            ("whisper", (common.clone(), Mode::Whisper(self.conn_id.clone()))),
             ("action", (common.clone(), Mode::Action)),
             ("request", (common, Mode::Request)),
         ]);
