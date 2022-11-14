@@ -11,7 +11,7 @@ use mongodb::{
 use serde_json::{json, Value};
 use sockets::{
     sockets::Lobby,
-    ws::{Mode, WsConn},
+    ws::{Sender, WsConn},
 };
 use std::str::FromStr;
 use sysinfo::SystemExt;
@@ -75,7 +75,7 @@ impl Manager {
         match collection.find_one(doc! {"_id": ObjectId::from_str(&uid.to_string().replace('"', "")).unwrap()}, None).await {
                 Ok(data) => match data {
                     Some(data) => {
-                        let ws = WsConn::new(data._id.to_hex(), Uuid::new_v4().to_string(), self.lobby.clone(), Mode::Admin);
+                        let ws = WsConn::new(data._id.to_hex(), Uuid::new_v4().to_string(), self.lobby.clone(), Sender::Admin);
                         match ws::start(ws, request, stream) {
                             Ok(response) => response,
                             Err(e) => HttpResponse::InternalServerError().body(json!({"error": "The server faced an internal error trying to create a room.", "stacktrace": format!("{:#?}", e)}).to_string())
@@ -103,7 +103,7 @@ impl Manager {
                         Ok(res) => match res {
                             Some(vehicle) => {
                                 if user.vehicles.contains(&vehicle._id) {
-                                    let ws = WsConn::new(vid, Uuid::new_v4().to_string(), self.lobby.clone(), Mode::Client);
+                                    let ws = WsConn::new(vid, Uuid::new_v4().to_string(), self.lobby.clone(), Sender::Client(uid));
                                     let response = match ws::start(ws, request, stream) {
                                         Ok(response) => response,
                                         Err(e) => HttpResponse::InternalServerError().body(json!({"error": "The server faced an internal error trying to create a room.", "stacktrace": format!("{:#?}", e)}).to_string())
@@ -235,7 +235,7 @@ impl Manager {
                                             },
                                             Err(e) => format!("Database reported an error: {:#?}", e)
                                         };
-                                        let ws = WsConn::new(vid.clone(), Uuid::new_v4().to_string(), self.lobby.clone(), Mode::Pair(json!({"message": message.clone(), "uid": uid.clone(), "vid": vid.clone()}).to_string()));
+                                        let ws = WsConn::new(vid.clone(), Uuid::new_v4().to_string(), self.lobby.clone(), Sender::Pair(json!({"message": message.clone(), "uid": uid.clone(), "vid": vid.clone()}).to_string()));
                                         match ws::start(ws, request, stream) {
                                             Ok(response) => response,
                                             Err(e) => HttpResponse::InternalServerError().body(json!({"error": "The server faced an internal error trying to create a room.", "stacktrace": format!("{:#?}", e)}).to_string())
