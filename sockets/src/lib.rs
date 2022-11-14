@@ -3,7 +3,7 @@ pub mod ws;
 
 pub mod sockets {
     use crate::messages::{ClientActorMessage, Connect, Disconnect, WsMessage};
-    use crate::ws::{Mode, Action};
+    use crate::ws::{Sender, Action};
     use actix::prelude::{Actor, Context, Handler, Recipient};
     use actix_web_actors::ws::CloseCode;
     use std::collections::{HashMap, HashSet};
@@ -121,13 +121,13 @@ pub mod sockets {
             // if it's a vehicle issuing connect
             match self.rooms.entry(msg.room_id.clone()) {
                 Entry::Occupied(mut o) => {
-                    match msg.mode {
-                        Mode::Client => {
+                    match msg.sender {
+                        Sender::Client => {
                             o.get_mut().insert(msg.self_id.clone());
                             self.insert(msg.self_id, msg.addr);
                         },
-                        Mode::Admin => self.send_disconnect_standalone(String::from("Vehicle with the specified ID has already connected."), &msg.addr, msg.self_id, CloseCode::Policy),
-                        Mode::Pair(message) => {
+                        Sender::Admin => self.send_disconnect_standalone(String::from("Vehicle with the specified ID has already connected."), &msg.addr, msg.self_id, CloseCode::Policy),
+                        Sender::Pair(message) => {
                             self.message_vehicle(msg.room_id, message.clone());
                             self.send_disconnect_standalone(message, &msg.addr, msg.self_id, CloseCode::Normal);
 
@@ -142,16 +142,16 @@ pub mod sockets {
                     }
                 },
                 Entry::Vacant(o) => {
-                    match msg.mode {
-                        Mode::Client => self.send_disconnect_standalone(String::from("Vehicle isn't active at the moment. Try again later."), &msg.addr, msg.self_id, CloseCode::Protocol),
-                        Mode::Admin => {
+                    match msg.sender {
+                        Sender::Client => self.send_disconnect_standalone(String::from("Vehicle isn't active at the moment. Try again later."), &msg.addr, msg.self_id, CloseCode::Protocol),
+                        Sender::Admin => {
                             let mut set = HashSet::new();
                             set.insert(msg.self_id.clone());
                             o.insert(set);
                             self.admins.insert(msg.room_id, msg.self_id.clone());
                             self.insert(msg.self_id, msg.addr);
                         },
-                        Mode::Pair(_) => self.send_disconnect_standalone(String::from("Vehicle isn't active at the moment. Try again later."), &msg.addr, msg.self_id, CloseCode::Protocol)
+                        Sender::Pair(_) => self.send_disconnect_standalone(String::from("Vehicle isn't active at the moment. Try again later."), &msg.addr, msg.self_id, CloseCode::Protocol)
                     }
                 }
             }
@@ -166,7 +166,7 @@ pub mod sockets {
 
         // echo the message back to all clients
         fn handle(&mut self, msg: ClientActorMessage, _: &mut Context<Self>) -> Self::Result {
-            self.rooms.get(&msg.room_id).unwrap().iter().for_each(|client| self.send_message(&msg.msg, client));
+            self.rooms.get(&msg.room_id).unwrap().iter().for_each(|client| self.send_message(&msg.msg.message, client));
         }
     }
 }
