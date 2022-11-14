@@ -73,12 +73,20 @@ pub mod sockets {
             }
         }
         // add an actor to the sessions map
-        fn insert(&mut self, self_id: String, addr: Recipient<WsMessage>) {
+        fn insert(&mut self, self_id: String, addr: Recipient<WsMessage>, uid: &str) {
             self.sessions.insert(
                 self_id.clone(),
                 addr.clone(),
             );
-            self.send_message(&format!("{} is your id", self_id), &self_id);
+            self.send_message(&json!({
+                "event": "connect",
+                "client": {
+                    "uid": uid,
+                    "conn_id": self_id
+                 },
+                 "message": "Connection successful",
+                 "error": ""
+           }).to_string(), &self_id);
         }
         // when called from a WsConn actor, sends the message to everyone else
         fn broadcast(&self, message: String, room: String, id: String) {
@@ -117,11 +125,11 @@ pub mod sockets {
                         .unwrap()
                         .iter()
                         .filter(|conn_id| *conn_id.to_owned() != msg.id)
-                        .for_each(|user_id| self.send_disconnect("Vehicle left and the room is being closed", user_id, CloseCode::Normal));
+                        .for_each(|user_id| self.send_disconnect(&json!({"event": "disconnect", "client": { "uid": "", "conn_id": user_id }, "message": "Vehicle left and the room is being closed", "error": ""}).to_string(), user_id, CloseCode::Normal));
                         self.rooms.remove(&msg.room_id);
                         self.admins.remove(&msg.room_id);
                     } else {
-                        self.message_vehicle(msg.room_id.clone(), json!({"event": "disconnect", "client": { "conn_id": msg.id } }).to_string());
+                        self.message_vehicle(msg.room_id.clone(), json!({"event": "disconnect", "client": { "uid": "", "conn_id": msg.id }, "message": "A client has disconnected", "error": "" }).to_string());
                         if let Some(lobby) = self.rooms.get_mut(&msg.room_id) {
                             lobby.remove(&msg.id);
                         }
@@ -143,7 +151,7 @@ pub mod sockets {
                     match msg.sender {
                         Sender::Client(uid) => {
                             o.get_mut().insert(msg.self_id.clone());
-                            self.insert(msg.self_id.clone(), msg.addr);
+                            self.insert(msg.self_id.clone(), msg.addr, &msg.room_id);
                             self.message_vehicle(msg.room_id, json!({"event": "connected", "client": {"uid": uid, "conn_id": msg.self_id}}).to_string());
                         },
                         Sender::Admin => self.send_disconnect_standalone(String::from("Vehicle with the specified ID has already connected."), &msg.addr, msg.self_id, CloseCode::Policy),
@@ -169,7 +177,7 @@ pub mod sockets {
                             set.insert(msg.self_id.clone());
                             o.insert(set);
                             self.admins.insert(msg.room_id, msg.self_id.clone());
-                            self.insert(msg.self_id, msg.addr);
+                            self.insert(msg.self_id, msg.addr, "");
                         },
                         Sender::Pair(_) => self.send_disconnect_standalone(String::from("Vehicle isn't active at the moment. Try again later."), &msg.addr, msg.self_id, CloseCode::Protocol)
                     }

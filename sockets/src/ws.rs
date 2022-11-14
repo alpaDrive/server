@@ -63,6 +63,18 @@ pub struct WsConn {
     sender: Sender,
 }
 
+fn draft_message(event: &str, message: &str, error: &str, conn_id: &str, uid: &str) -> String {
+    json!({
+        "event": event,
+        "client": {
+            "uid": uid,
+            "conn_id": conn_id
+         },
+         "message": message,
+         "error": error
+   }).to_string()
+}
+
 impl ClientMessage {
     pub fn to_string(&self) -> String {
         json!({
@@ -74,7 +86,7 @@ impl ClientMessage {
             "attachments": self.attachments
         }).to_string()
     }
-    fn get_mode(&self) -> Result<Mode, &str> {
+    fn get_mode(&self) -> Result<Mode, String> {
         // just declaring these common fields to avoid repetition atm. Change later flexibly in the map
         let common = vec![self.status.clone(), self.conn_id.clone(), self.message.clone()];
         let map = HashMap::from([
@@ -95,10 +107,10 @@ impl ClientMessage {
                 if flag {
                     Ok(values.1.clone())
                 } else {
-                    Err("Your message is missing one or more parameters required for the given mode")
+                    Err(draft_message("error", "", "Your message is missing one or more parameters required for the given mode", &self.conn_id, ""))
                 }
             },
-            None => Err("Your message is missing or has an incorrect mode parameter")
+            None => Err(draft_message("error", "", "Your message is missing or has an incorrect mode parameter", &self.conn_id, ""))
         }
     }
 }
@@ -203,7 +215,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsConn {
                             Err(error) => ctx.text(error)
                         }
                     }
-                    Err(_) => ctx.text("Your message is not in the specified format"),
+                    Err(_) => ctx.text(draft_message("error", "", "This message is not in the specified format", &self.id, "")),
                 };
             }
             Err(_) => {}
