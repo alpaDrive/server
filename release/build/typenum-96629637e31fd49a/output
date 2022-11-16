@@ -1,0 +1,2 @@
+cargo:rustc-env=TYPENUM_BUILD_CONSTS=/home/vishalds/server/target/release/build/typenum-96629637e31fd49a/out/consts.rs
+cargo:rustc-env=TYPENUM_BUILD_OP=/home/vishalds/server/target/release/build/typenum-96629637e31fd49a/out/op.rs
