@@ -20,7 +20,7 @@ use sockets::sockets::Lobby;
 
 #[get("/")]
 async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello world!")
+    HttpResponse::Ok().body("alpaDrive API")
 }
 
 #[get("/join/vehicle/{uid}")]
@@ -40,7 +40,7 @@ async fn pair(req: HttpRequest, stream: web::Payload, context: web::Data<Manager
 
 // Account management routes
 
-#[get("/login")]
+#[post("/login")]
 async fn login(context: web::Data<Manager>, req_body: String) -> impl Responder {
     match serde_json::from_str(&req_body) {
         Ok(data) => context.login(data).await,
@@ -50,7 +50,7 @@ async fn login(context: web::Data<Manager>, req_body: String) -> impl Responder 
     }
 }
 
-#[get("/status")]
+#[post("/status")]
 async fn status(context: web::Data<Manager>, req_body: String) -> impl Responder {
     match serde_json::from_str(&req_body) {
             Ok(data) => context.status(data),
@@ -82,7 +82,7 @@ async fn registervehicle(context: web::Data<Manager>, req_body:String) -> impl R
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let mut client_options = ClientOptions::parse("mongodb://localhost:8080/").await.unwrap();
+    let mut client_options = ClientOptions::parse("mongodb://localhost:27017/").await.unwrap();
     client_options.app_name = Some("alpadrive".to_string());
     let client = Client::with_options(client_options).unwrap();
     let database = client.database("alpadrive");

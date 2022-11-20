@@ -5,6 +5,7 @@ The main web server built on Actix Web
 Routes are mainly for starting a connection with the server. For instance, registering vehicles and users, creating, joining & leaving rooms, etc a.k.a the generic boring stuff. Sadly, we can't skip it. There is no magic that will manage the boring stuff for us.
 1. ### Signup
     * Request type: POST
+    * Route: `/signup`
     * Format: JSON
         ```json
         {
@@ -26,7 +27,8 @@ Routes are mainly for starting a connection with the server. For instance, regis
         ```
 
 2. ### Login
-    * Request type: GET
+    * Request type: POST
+    * Route: `/login`
     * Format: JSON
 
         ```json
@@ -50,7 +52,8 @@ Routes are mainly for starting a connection with the server. For instance, regis
         ```
 
 3. ### Status
-    * Request type: GET
+    * Request type: POST
+    * Route: `/status`
     * Format: JSON
         ```json
         {
@@ -72,6 +75,7 @@ Routes are mainly for starting a connection with the server. For instance, regis
         
 4. ### Register a vehicle
     * Request type: POST
+    * Route: `/vehicle/register`
     * Format: JSON
     
         ```json
@@ -93,6 +97,7 @@ Routes are mainly for starting a connection with the server. For instance, regis
 5. ### Create and join a vehicle room
 
     * Request type: GET
+    * Route: `/join/vehicle/{uid}`
     * Format: Plain URL route
 
         ```
@@ -104,6 +109,7 @@ Routes are mainly for starting a connection with the server. For instance, regis
 
 6. ### Pair a user & vehicle
     * Request type: GET
+    * Route: `/pair/{vid}/{uid}`
     * Format: Plain URL Route
         ```
         https://url.com/pair/{vid}/{uid}
@@ -114,6 +120,7 @@ Routes are mainly for starting a connection with the server. For instance, regis
 
 7. ### Join a vehicle's room
     * Request type: GET
+    * Route: `/join/user/{vid}/{uid}`
     * Format: Plain URL Route
         ```
         https://url.com/join/user/{vid}/{uid}
