@@ -30,6 +30,7 @@ pub mod actors {
     }
 
     pub mod users {
+        use std::str::FromStr;
         use mongodb::bson::{oid::ObjectId, Document, doc};
         use serde::{Deserialize, Serialize};
         use serde_json::Value;
@@ -74,6 +75,16 @@ pub mod actors {
                     "password": self.password,
                     "email": self.email,
                     "vehicles": self.vehicles
+                }
+            }
+            pub fn parse_id(request: Value) -> ObjectId {
+                match serde_json::from_value::<Value>(request["uid"].clone()) {
+                    Ok(data) => {
+                        if let Some(uid) = data.as_str() {
+                            ObjectId::from_str(uid).unwrap()
+                        } else { ObjectId::new() }
+                    },
+                    Err(_) => ObjectId::new()
                 }
             }
         }

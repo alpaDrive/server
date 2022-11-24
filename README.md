@@ -41,7 +41,7 @@ Routes are mainly for starting a connection with the server. For instance, regis
     * Returns: An error if either the user doesn't exist or if the credentials are incorrect. Either one of username or email are required to complete the request. Or else the info of that specific user is returned
         ```json
         {
-            "_id": {
+            "uid": {
                 "$oid": "63307b31d0c18856548cef9d"
             },
             "name": "\"testuser2\"",
@@ -91,6 +91,34 @@ Routes are mainly for starting a connection with the server. For instance, regis
             "id": {
                 "$oid": "6337feae9e332e5b3ad192b7"
             }
+        }
+        ```
+
+5. ### Refresh the list of paired vehicles
+
+    * Request type: POST
+    * Route: `/vehicle/refresh`
+    * Format: JSON
+
+        ```json
+        {
+            "uid": "<oid of the user>"
+        }
+        ```
+    * Returns: A JSON object containing the count of paired vehicles, along with a list of vehicle objects.
+
+        ```json
+        {
+            "count": 1,
+            "vehicles": [
+                {
+                "_id": {
+                    "$oid": "63613b6e50ddc3b5ef1cca7c"
+                },
+                "company": "Skoda",
+                "model": "Octavia vRS"
+                }
+            ]
         }
         ```
         

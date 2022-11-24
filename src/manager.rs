@@ -188,18 +188,60 @@ impl Manager {
             Ok(data) => match data {
                 Some(data) => {
                     if data.password != user.password { HttpResponse::Unauthorized().body(json!({"error": "Wrong credentials"}).to_string()) }
-                    else { HttpResponse::Ok().body(json!({
-                        "uid": match data._id {
-                            Some(id) => id,
-                            None => ObjectId::new()
-                        },
-                        "name": data.name,
-                        "username": data.username,
-                        "email": data.email,
-                        "vehicles": data.vehicles
-                    }).to_string()) }
+                    else {
+                        let mut vehicles: Vec<Vehicle> = vec![]; 
+                        if let Ok(mut cursor) = self.db.collection::<Vehicle>("vehicles").find(doc! {"_id": {"$in": data.vehicles}}, None).await {
+                            let mut flag = true;
+                            while flag {
+                                if let Ok(remains) = cursor.advance().await {
+                                    if !remains { flag = false; }
+                                    else {
+                                        if let Ok(vehicle) = cursor.deserialize_current() { vehicles.push(vehicle) }
+                                    }
+                                }
+                            }
+                        };
+                        HttpResponse::Ok().body(json!({
+                            "uid": match data._id {
+                                Some(id) => id,
+                                None => ObjectId::new()
+                            },
+                            "name": data.name,
+                            "username": data.username,
+                            "email": data.email,
+                            "vehicles": vehicles
+                        }).to_string())
+                     }
                 },
                 None => HttpResponse::NotFound().body(json!({"error": "User with this username wasn't found on this server"}).to_string())
+            },
+            Err(_) => HttpResponse::InternalServerError().body(json!({"error": "There was an error when trying to execute mongodb::collection.find_one()"}).to_string())
+        }
+    }
+
+    pub async fn refreshvehicles(&self, request: Value) -> HttpResponse {
+        let id = User::parse_id(request);
+        match self.db.collection::<User>("users").find_one(doc! {"_id": id}, None).await {
+            Ok(user) => match user {
+                Some(user) => {
+                    let mut vehicles: Vec<Vehicle> = vec![]; 
+                        if let Ok(mut cursor) = self.db.collection::<Vehicle>("vehicles").find(doc! {"_id": {"$in": user.vehicles}}, None).await {
+                            let mut flag = true;
+                            while flag {
+                                if let Ok(remains) = cursor.advance().await {
+                                    if !remains { flag = false; }
+                                    else {
+                                        if let Ok(vehicle) = cursor.deserialize_current() { vehicles.push(vehicle) }
+                                    }
+                                }
+                            }
+                        };
+                    HttpResponse::Ok().body(json!({
+                        "count": vehicles.len(),
+                        "vehicles": vehicles
+                    }).to_string())
+                },
+                None => HttpResponse::NotFound().body(json!({"error": "User with this ID wasn't found on this server"}).to_string())
             },
             Err(_) => HttpResponse::InternalServerError().body(json!({"error": "There was an error when trying to execute mongodb::collection.find_one()"}).to_string())
         }

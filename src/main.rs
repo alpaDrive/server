@@ -80,6 +80,16 @@ async fn registervehicle(context: web::Data<Manager>, req_body:String) -> impl R
     }
 }
 
+#[post("/vehicle/refresh")]
+async fn refreshvehicle(context: web::Data<Manager>, req_body: String) -> impl Responder {
+    match serde_json::from_str(&req_body) {
+        Ok(data) => context.refreshvehicles(data).await,
+        Err(_) => HttpResponse::NotAcceptable().body(json!({
+            "error": "Failed to parse request. Make sure it is a valid JSON payload."
+        }).to_string())
+    }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let mut client_options = ClientOptions::parse("mongodb://localhost:27017/").await.unwrap();
@@ -97,6 +107,7 @@ async fn main() -> std::io::Result<()> {
             .service(status)
             .service(signup)
             .service(registervehicle)
+            .service(refreshvehicle)
             .service(joinvehicle)
             .service(joinuser)
             .service(pair)
