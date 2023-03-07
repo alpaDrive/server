@@ -4,29 +4,55 @@ pub mod ws;
 pub mod sockets {
     use crate::messages::{ClientActorMessage, Connect, Disconnect, WsMessage};
     use crate::ws::{Sender, Action, Mode};
-    use actix::prelude::{Actor, Context, Handler, Recipient};
+    use actix::prelude::{Actor, Handler, Recipient};
     use actix_web_actors::ws::CloseCode;
+    use actix::{SyncArbiter, SyncContext, Addr};
     use std::collections::{HashMap, HashSet};
     use std::collections::hash_map::Entry;
+    use std::sync::{RwLock, Arc};
     use serde_json::json;
     
     pub struct Lobby {
         sessions: HashMap<String, Recipient<WsMessage>>,
         rooms: HashMap<String, HashSet<String>>,      //room id  to list of users id
-        admins: HashMap<String, String>
+        admins: HashMap<String, String>,
+        lock: Arc<RwLock<HashMap<String, String>>>
     }
 
     impl Default for Lobby {
-        fn default() -> Lobby {
+        fn default() -> Self {
             Lobby {
                 sessions: HashMap::new(),
                 rooms: HashMap::new(),
-                admins: HashMap::new()
+                admins: HashMap::new(),
+                lock: Arc::new(RwLock::new(HashMap::new()))
+            }
+        }
+    }
+
+    impl Clone for Lobby {
+        fn clone(&self) -> Self {
+            Lobby {
+                sessions: self.sessions.clone(),
+                rooms: self.rooms.clone(),
+                admins: self.admins.clone(),
+                lock: self.lock.clone(),
             }
         }
     }
 
     impl Lobby {
+
+        pub fn new(lock: Arc<RwLock<HashMap<String, String>>>) -> Addr<Self> {
+            let lobby = Lobby {
+                sessions: HashMap::new(),
+                rooms: HashMap::new(),
+                admins: HashMap::new(),
+                lock: lock.clone()
+            };
+            let addr = SyncArbiter::start(1, move || lobby.clone());
+            addr
+        }
         
         // send message to user in the room
         fn send_message(&self, message: &str, id_to: &String) {
@@ -109,14 +135,14 @@ pub mod sockets {
     }
 
     impl Actor for Lobby {
-        type Context = Context<Self>;
+        type Context = SyncContext<Self>;
     }
 
     // Handler for Disconnect message.
     impl Handler<Disconnect> for Lobby {
         type Result = ();
 
-        fn handle(&mut self, msg: Disconnect, _: &mut Context<Self>) {
+        fn handle(&mut self, msg: Disconnect, _: &mut SyncContext<Self>) {
             if self.sessions.remove(&msg.id).is_some() {
                 if let Entry::Occupied(admin) = self.admins.entry(msg.room_id.clone()) {
                     if &msg.id == admin.get() {
@@ -144,7 +170,7 @@ pub mod sockets {
     impl Handler<Connect> for Lobby {
         type Result = ();
 
-        fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
+        fn handle(&mut self, msg: Connect, _: &mut SyncContext<Self>) -> Self::Result {
             // if it's a vehicle issuing connect
             match self.rooms.entry(msg.room_id.clone()) {
                 Entry::Occupied(mut o) => {
@@ -193,7 +219,7 @@ pub mod sockets {
         type Result = ();
 
         // echo the message back to all clients
-        fn handle(&mut self, msg: ClientActorMessage, _: &mut Context<Self>) -> Self::Result {
+        fn handle(&mut self, msg: ClientActorMessage, _: &mut SyncContext<Self>) -> Self::Result {
             match msg.mode {
                 Mode::Broadcast => self.broadcast(msg.msg.to_string(), msg.room_id.clone(), msg.id),
                 Mode::Whisper(target) => self.whisper(msg.msg.to_string(), msg.room_id, target),
