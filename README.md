@@ -60,12 +60,13 @@ Routes are mainly for starting a connection with the server. For instance, regis
             "systemstat": false
         }
         ```
-    * Returns: Active websocket connections indicating number of users and number of vehicles. Also provides system info if `systemstat: true`
+    * Returns: Active websocket connections indicating number of users and number of vehicles. Also provides system info if `systemstat: true`. It shouls be noted that an average computer takes ~20ms to measure system resources. So the response time might be delayed with `systemstat: true`.
 
         ```json
         {
             "active_users": 0,
             "active_vehicles": 0,
+            "active_sessions": 0,
             "memory_available": "7.84 GB",
             "memory_used": "2.01 GB",
             "total_swap": "2.10 GB",

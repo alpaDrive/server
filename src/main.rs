@@ -98,13 +98,16 @@ async fn main() -> std::io::Result<()> {
     let client = Client::with_options(client_options).unwrap();
     let database = client.database("alpadrive");
     let active_vehicles = Arc::new(RwLock::new(HashMap::<String, String>::new()));
+    let active_sessions = Arc::new(RwLock::new(0));
+    let av_copy = Arc::clone(&active_vehicles);
+    let sessions_copy = Arc::clone(&active_sessions);
 
-    let lobby = Lobby::new(active_vehicles);
+    let lobby = Lobby::new(active_vehicles, active_sessions);
     // let lobby = Lobby::default().start();
 
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(Manager::start(database.clone(), lobby.clone())))
+            .app_data(web::Data::new(Manager::start(database.clone(), lobby.clone(), Arc::clone(&av_copy), Arc::clone(&sessions_copy))))
             .service(hello)
             .service(login)
             .service(status)
