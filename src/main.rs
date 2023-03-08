@@ -1,7 +1,8 @@
 mod manager;
 
+use std::{sync::{Arc, RwLock}, collections::HashMap};
+
 pub use crate::manager::Manager;
-use actix::Actor;
 use actix_web::{web::{self, Path}, get, post, App, HttpResponse, HttpRequest, HttpServer, Responder};
 use mongodb::{Client, options::ClientOptions};
 use serde_json::json;
@@ -92,16 +93,21 @@ async fn refreshvehicle(context: web::Data<Manager>, req_body: String) -> impl R
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let mut client_options = ClientOptions::parse("mongodb://localhost:27017/").await.unwrap();
+    let mut client_options = ClientOptions::parse("mongodb://localhost:8080/").await.unwrap();
     client_options.app_name = Some("alpadrive".to_string());
     let client = Client::with_options(client_options).unwrap();
     let database = client.database("alpadrive");
+    let active_vehicles = Arc::new(RwLock::new(HashMap::<String, String>::new()));
+    let active_sessions = Arc::new(RwLock::new(0));
+    let av_copy = Arc::clone(&active_vehicles);
+    let sessions_copy = Arc::clone(&active_sessions);
 
-    let lobby = Lobby::default().start();
+    let lobby = Lobby::new(active_vehicles, active_sessions);
+    // let lobby = Lobby::default().start();
 
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(Manager::start(database.clone(), lobby.clone())))
+            .app_data(web::Data::new(Manager::start(database.clone(), lobby.clone(), Arc::clone(&av_copy), Arc::clone(&sessions_copy))))
             .service(hello)
             .service(login)
             .service(status)

@@ -14,37 +14,42 @@ use sockets::{
     ws::{Sender, WsConn},
 };
 use std::str::FromStr;
+use std::sync::{Arc, RwLock};
+use std::collections::HashMap;
 use sysinfo::SystemExt;
 use types::actors::{users::User, vehicles::Vehicle};
 use uuid::Uuid;
 
 pub struct Manager {
     db: Database,
-    active_users: usize,
-    active_vehicles: usize,
     lobby: Addr<Lobby>,
+    admins: Arc<RwLock<HashMap<String, String>>>,
+    sessions: Arc<RwLock<usize>>
 }
 
 impl Manager {
-    pub fn start(database: Database, lobby: Addr<Lobby>) -> Manager {
+    pub fn start(database: Database, lobby: Addr<Lobby>, admins: Arc<RwLock<HashMap<String, String>>>, sessions: Arc<RwLock<usize>>) -> Manager {
         Manager {
             db: database,
-            active_users: 0,
-            active_vehicles: 0,
-            lobby: lobby,
+            lobby,
+            admins,
+            sessions
         }
     }
 
     pub fn status(&self, data: Value) -> HttpResponse {
         let response = match serde_json::from_value(data["systemstat"].clone()) {
             Ok(data) => {
+                let vehicles = self.admins.read().unwrap().len();
+                let sessions = self.sessions.read().unwrap();
                 let response = match data {
                     true => {
                         let mut system = sysinfo::System::new();
                         system.refresh_all();
                         json!({
-                            "active_users": self.active_users,
-                            "active_vehicles": self.active_vehicles,
+                            "active_users": *sessions - vehicles,
+                            "active_vehicles": vehicles,
+                            "active_sessions": *sessions,
                             "memory_available": format!("{:.2} GB", system.get_total_memory() as f64 * 0.000001),
                             "memory_used": format!("{:.2} GB", system.get_used_memory() as f64 * 0.000001),
                             "total_swap": format!("{:.2} GB", system.get_total_swap() as f64 * 0.000001),
@@ -52,8 +57,9 @@ impl Manager {
                         }).to_string()
                     },
                     false => json!({
-                        "active_users": self.active_users,
-                        "active_vehicles": self.active_vehicles,
+                        "active_users": *sessions - vehicles,
+                        "active_vehicles": vehicles,
+                        "active_sessions": *sessions
                     }).to_string()
                 };
                 HttpResponse::Ok().body(response)
