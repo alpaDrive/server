@@ -35,8 +35,8 @@ async fn joinuser(req: HttpRequest, stream: web::Payload, context: web::Data<Man
 }
 
 #[get("/pair/{vid}/{uid}")]
-async fn pair(req: HttpRequest, stream: web::Payload, context: web::Data<Manager>, path: Path<(String, String)>) -> impl Responder {
-    context.pair(path.1.clone(), path.0.clone(), &req, stream).await
+async fn pair(req: HttpRequest, stream: web::Payload, context: web::Data<Manager>, path: Path<(String, String)>, query_params: web::Query<HashMap<String, String>>) -> impl Responder {
+    context.pair(path.1.clone(), path.0.clone(), &req, stream, query_params.get("initial").map(|s| s == "true").unwrap_or(false)).await
 }
 
 // Account management routes
