@@ -102,7 +102,7 @@ async fn main() -> std::io::Result<()> {
     let av_copy = Arc::clone(&active_vehicles);
     let sessions_copy = Arc::clone(&active_sessions);
 
-    let lobby = Lobby::new(active_vehicles, active_sessions);
+    let lobby = Lobby::new(active_vehicles, active_sessions).await;
     // let lobby = Lobby::default().start();
 
     HttpServer::new(move || {

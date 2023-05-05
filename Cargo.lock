@@ -963,6 +963,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "logger"
+version = "0.1.0"
+dependencies = [
+ "mongodb",
+]
+
+[[package]]
 name = "lru-cache"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1520,6 +1527,7 @@ dependencies = [
  "actix-web",
  "actix-web-actors",
  "futures",
+ "logger",
  "mongodb",
  "serde",
  "serde_json",
@@ -1603,6 +1611,7 @@ dependencies = [
  "actix",
  "actix-web",
  "actix-web-actors",
+ "logger",
  "mongodb",
  "serde",
  "serde_json",

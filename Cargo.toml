@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 types={ path = "./types" }
 sockets={ path = "./sockets" }
+logger={ path = "./logger" }
 actix = "0.13.0"
 actix-web="4"
 actix-web-actors="4.1.0"
