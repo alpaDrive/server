@@ -4,7 +4,7 @@ pub mod ws;
 pub mod sockets {
     use crate::messages::{ClientActorMessage, Connect, Disconnect, WsMessage};
     use crate::ws::{Action, Mode, Sender};
-    use logger::logger::Logger;
+    use logger::Logger;
     use actix::prelude::{Actor, Handler, Recipient};
     use actix::{Addr, SyncArbiter, SyncContext};
     use actix_web_actors::ws::CloseCode;
