@@ -31,7 +31,8 @@ struct Log {
     distance: u32,
     stress: u32,
     last_odometer: u32,
-    message_count: u32
+    message_count: u32,
+    max_speed: (u32, String) 
 }
 
 impl fmt::Display for Message {
@@ -89,6 +90,7 @@ impl Logger {
                 stress: 0,
                 message_count: 0,
                 date: Local::now().naive_local(),
+                max_speed: (0, Local::now().format("%I:%M %p").to_string())
             },
             false,
         );
@@ -133,6 +135,9 @@ impl Logger {
             let mut count = base_stats.message_count;
 
             if let Some(speed) = message.speed {
+                if speed > base_stats.max_speed.0 {
+                    base_stats.max_speed = (speed, Local::now().format("%I:%M %p").to_string())
+                }
                 base_stats.average_speed =
                     ((base_stats.average_speed * (count)) + speed) / ((count) + 1);
                 count += 1;
@@ -155,7 +160,8 @@ impl Logger {
                             "distance": base_stats.distance,
                             "stress": base_stats.stress,
                             "last_odometer": base_stats.last_odometer,
-                            "message_count": base_stats.message_count
+                            "message_count": base_stats.message_count,
+                            "max_speed": [base_stats.max_speed.0, base_stats.max_speed.1]
                         }
                     },
                     None,
@@ -172,6 +178,7 @@ impl Logger {
             base_stats.last_odometer = message.odo;
             let speed = message.speed.unwrap_or(0);
             base_stats.average_speed = speed;
+            base_stats.max_speed = (speed, Local::now().format("%I:%M %p").to_string());
             collection
                 .insert_one(&base_stats, None)
                 .await
