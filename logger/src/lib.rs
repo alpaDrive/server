@@ -31,6 +31,7 @@ struct Log {
     distance: u32,
     stress: u32,
     last_odometer: u32,
+    message_count: u32
 }
 
 impl fmt::Display for Message {
@@ -81,11 +82,12 @@ impl Logger {
         let options = FindOneOptions::builder().sort(doc! { "_id": -1 }).build();
         let default = (
             Log {
-                _id: None,
+                _id: Some(ObjectId::new()),
                 average_speed: 0,
                 distance: 0,
                 last_odometer: 0,
                 stress: 0,
+                message_count: 0,
                 date: Local::now().naive_local(),
             },
             false,
@@ -128,21 +130,20 @@ impl Logger {
             };
             let distance = message.odo - base_stats.last_odometer;
             base_stats.distance += distance;
-
-            let message_count = self.message_count_map.entry(vid).or_insert(0);
+            let mut count = base_stats.message_count;
 
             if let Some(speed) = message.speed {
-                base_stats.average_speed = ((base_stats.average_speed * (*message_count)) + speed)
-                    / ((*message_count) + 1);
-                *message_count += 1;
+                base_stats.average_speed =
+                    ((base_stats.average_speed * (count)) + speed) / ((count) + 1);
+                count += 1;
             }
 
-            if !message.stressed {
-                base_stats.stress =
-                    ((base_stats.stress * (*message_count - 1)) + 1) / (*message_count);
-                *message_count += 1;
+            if message.stressed {
+                base_stats.stress = ((base_stats.stress * (count - 1)) + 1) / (count);
+                count += 1;
             }
 
+            base_stats.message_count = count;
             base_stats.last_odometer = message.odo;
 
             match collection
@@ -153,7 +154,8 @@ impl Logger {
                             "average_speed": base_stats.average_speed,
                             "distance": base_stats.distance,
                             "stress": base_stats.stress,
-                            "last_odometer": base_stats.last_odometer
+                            "last_odometer": base_stats.last_odometer,
+                            "message_count": base_stats.message_count
                         }
                     },
                     None,
