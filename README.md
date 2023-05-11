@@ -207,6 +207,19 @@ The general format of such a message is as shown
 }
 ```
 
+> **Note** The vehicle can broadcast any valid string as a `message`. But, in order for it to be logged, it should follow another standard format.
+> ```json
+> {
+>   "gear": "<integer value>", // optional
+>   "speed": "<integer value>", // optional
+>   "rpm": "<integer value>", // optional
+>   "location": "<string value>", // optional
+>   "odo": "<integer value>",
+>   "stressed": true // or false    
+> }
+> ```
+> If a message is sent without this adhering to this format, then the data won't be logged in the database and will be lost. It won't be use for computation afterwards. The message will however, be broadcasted to the users in the room.
+
 #### Whisper
 This is when the vehicle has to send a message to a specific user only without the others knowing. This can happen for the following events:
 

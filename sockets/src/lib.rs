@@ -12,6 +12,7 @@ pub mod sockets {
     use std::collections::hash_map::Entry;
     use std::collections::{HashMap, HashSet};
     use std::sync::{Arc, RwLock};
+    use async_std::task;
 
     pub struct Lobby {
         sessions: HashMap<String, Recipient<WsMessage>>,
@@ -271,7 +272,13 @@ pub mod sockets {
         fn handle(&mut self, msg: ClientActorMessage, _: &mut SyncContext<Self>) -> Self::Result {
             match msg.mode {
                 Mode::Broadcast => {
-                    self.broadcast(msg.msg.to_string(), msg.room_id.clone(), msg.id)
+                    let mut logger = self.logger.clone();
+                    let data = msg.msg.message.clone();
+                    let vid = msg.room_id.clone();
+                    task::spawn(async move {
+                        logger.log(data, vid).await;
+                    });
+                    self.broadcast(msg.msg.to_string(), msg.room_id.clone(), msg.id.clone())
                 },
                 Mode::Whisper(target) => self.whisper(msg.msg.to_string(), msg.room_id, target),
                 _ => self.message_vehicle(msg.room_id.clone(), msg.msg.to_string()),

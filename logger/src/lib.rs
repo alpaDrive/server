@@ -1,29 +1,31 @@
 use chrono::{Datelike, Local, NaiveDateTime};
+use core::fmt;
 use mongodb::{
-    bson::doc,
+    bson::{doc, oid::ObjectId},
     options::{ClientOptions, FindOneOptions},
     Client, Collection, Database,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use serde_json;
 
 pub struct Logger {
     database: Option<Database>,
-    message_count_map: HashMap<String, u32>
+    message_count_map: HashMap<String, u32>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-struct Message {
+pub struct Message {
     gear: Option<u32>,
     rpm: Option<u32>,
     speed: Option<u32>,
+    location: Option<String>,
     odo: u32,
     stressed: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 struct Log {
+    _id: Option<ObjectId>,
     date: NaiveDateTime,
     average_speed: u32,
     distance: u32,
@@ -31,18 +33,31 @@ struct Log {
     last_odometer: u32,
 }
 
+impl fmt::Display for Message {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{{ gear: {:?}, rpm: {:?}, speed: {:?}, location: {:?}, odo: {}, stressed: {} }}",
+            self.gear, self.rpm, self.speed, self.location, self.odo, self.stressed
+        )
+    }
+}
+
 impl Clone for Logger {
     fn clone(&self) -> Self {
         Logger {
             database: self.database.clone(),
-            message_count_map: self.message_count_map.clone()
+            message_count_map: self.message_count_map.clone(),
         }
     }
 }
 
 impl Default for Logger {
     fn default() -> Self {
-        Logger { database: None, message_count_map: HashMap::new() }
+        Logger {
+            database: None,
+            message_count_map: HashMap::new(),
+        }
     }
 }
 
@@ -56,7 +71,7 @@ impl Logger {
         let database = client.database("alpadrive-logs");
         Logger {
             database: Some(database),
-            message_count_map: HashMap::new()
+            message_count_map: HashMap::new(),
         }
     }
 
@@ -66,6 +81,7 @@ impl Logger {
         let options = FindOneOptions::builder().sort(doc! { "_id": -1 }).build();
         let default = (
             Log {
+                _id: None,
                 average_speed: 0,
                 distance: 0,
                 last_odometer: 0,
@@ -96,63 +112,68 @@ impl Logger {
         }
     }
 
-    async fn log(&mut self, message: Message, vid: String) {
+    pub async fn log(&mut self, message: Message, vid: String) {
         let collection = self
             .database
             .clone()
             .unwrap_or_else(|| panic!("Logger couldn't find an active database"))
             .collection::<Log>(&vid);
-        let (mut base_stats, update_required) = self.get_base_stats(collection).await;
+        let (mut base_stats, update_required) = self.get_base_stats(collection.clone()).await;
 
         if update_required {
             // perform calculation and update operations
+            let id = match base_stats._id {
+                Some(value) => value,
+                None => ObjectId::new(),
+            };
             let distance = message.odo - base_stats.last_odometer;
             base_stats.distance += distance;
 
-            let message_count = self.message_count_map.entry(vid.clone()).or_insert(0);
+            let message_count = self.message_count_map.entry(vid).or_insert(0);
 
             if let Some(speed) = message.speed {
-                base_stats.average_speed = ((base_stats.average_speed * (*message_count)) + speed) / ((*message_count) + 1);
+                base_stats.average_speed = ((base_stats.average_speed * (*message_count)) + speed)
+                    / ((*message_count) + 1);
                 *message_count += 1;
             }
-            
+
             if !message.stressed {
-                base_stats.stress = ((base_stats.stress * (*message_count - 1)) + 1) / (*message_count);
+                base_stats.stress =
+                    ((base_stats.stress * (*message_count - 1)) + 1) / (*message_count);
                 *message_count += 1;
-            }            
+            }
 
             base_stats.last_odometer = message.odo;
 
-            // collection
-            //     .insert_one(
-            //         doc! { "distance": base_stats.distance,
-            //         "average_speed": base_stats.average_speed,
-            //         "stress": base_stats.stress,
-            //         "date": base_stats.date,
-            //         "last_odometer": base_stats.last_odometer},
-            //         None,
-            //     )
-            //     .await
-            //     .expect("Failed to insert document");
+            match collection
+                .update_one(
+                    doc! {"_id": id},
+                    doc! {
+                        "$set": {
+                            "average_speed": base_stats.average_speed,
+                            "distance": base_stats.distance,
+                            "stress": base_stats.stress,
+                            "last_odometer": base_stats.last_odometer
+                        }
+                    },
+                    None,
+                )
+                .await
+            {
+                Ok(_) => {}
+                Err(e) => {
+                    println!("{:?}", e);
+                }
+            };
         } else {
             // just insert the data as a new document
             base_stats.last_odometer = message.odo;
             let speed = message.speed.unwrap_or(0);
             base_stats.average_speed = speed;
-
-            // collection
-            //     .insert_one(
-            //         doc! {
-            //             "distance": base_stats.distance,
-            //             "average_speed": base_stats.average_speed,
-            //             "stress": base_stats.stress,
-            //             "date": base_stats.date,
-            //             "last_odometer": base_stats.last_odometer
-            //         },
-            //         None,
-            //     )
-            //     .await
-            //     .expect("Failed to insert document");
+            collection
+                .insert_one(&base_stats, None)
+                .await
+                .expect("Failed to insert document");
         }
     }
 }
