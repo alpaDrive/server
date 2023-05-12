@@ -344,4 +344,21 @@ impl Manager {
             }).to_string())
         }
     }
+
+    pub async fn overall_logs(&self, request: String) -> HttpResponse {
+        #[derive(Deserialize)]
+        struct Format {
+            vid: String
+        }
+        match serde_json::from_str::<Format>(&request) {
+            Ok(data) => match self.logger.overall_logs(data.vid).await {
+                Ok(result) => HttpResponse::Ok().body(result),
+                Err(e) => HttpResponse::InternalServerError().body(json!({"error": "Something unexpected happened when trying to fetch logs", "stacktrace": format!("{}", e)}).to_string())
+            },
+            Err(e) => HttpResponse::NotAcceptable().body(json!({
+                "error": "Failed to parse request. Make sure it is a valid JSON payload in the directed format.",
+                "stacktrace": format!("{:?}", e)
+            }).to_string())
+        }
+    }
 }

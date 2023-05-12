@@ -104,6 +104,11 @@ async fn periodiclogs(context: web::Data<Manager>, req_body: String) -> impl Res
     context.periodiclogs(req_body).await
 }
 
+#[post("/logs/overall")]
+async fn overall_logs(context: web::Data<Manager>, req_body: String) -> impl Responder {
+    context.overall_logs(req_body).await
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let mut client_options = ClientOptions::parse("mongodb://localhost:8080/").await.unwrap();
@@ -133,6 +138,7 @@ async fn main() -> std::io::Result<()> {
             .service(pair)
             .service(dailylogs)
             .service(periodiclogs)
+            .service(overall_logs)
     })
     .bind(("127.0.0.1", 7878))?
     .run()

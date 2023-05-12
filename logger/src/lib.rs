@@ -8,7 +8,7 @@ use mongodb::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::{collections::HashMap};
+use std::collections::HashMap;
 
 pub struct Logger {
     database: Option<Database>,
@@ -21,6 +21,8 @@ pub struct Message {
     rpm: Option<u32>,
     speed: Option<u32>,
     location: Option<String>,
+    temp: Option<u32>,
+    fuel: Option<u32>,
     odo: u32,
     stressed: bool,
 }
@@ -123,6 +125,11 @@ impl Logger {
         }
     }
 
+    fn calculate_degradation(&self, events: u32) -> f64 {
+        let required_events = 1000.0;
+        (events as f64 / required_events) * 0.01
+    }
+
     pub async fn log(&mut self, message: Message, vid: String) {
         let collection = self
             .database
@@ -199,7 +206,7 @@ impl Logger {
             .clone()
             .unwrap_or_else(|| panic!("Logger couldn't find an active database"))
             .collection::<Log>(&vid);
-        let filter = doc! {"date": {"$regex": format!("^{}", &date)}};
+        let filter = doc! {"date": date};
         let options = FindOneOptions::builder().build();
 
         match collection.find_one(filter, options).await {
@@ -207,6 +214,7 @@ impl Logger {
                 Some(result) => Ok(json!({
                     "average_speed": result.average_speed,
                     "stress_count": result.stress,
+                    "degradation": self.calculate_degradation(result.stress),
                     "distance_travelled": result.distance,
                     "last_odometer": result.last_odometer,
                     "max_speed": {
@@ -247,6 +255,7 @@ impl Logger {
                 let mut max_speed = (0, String::from(""));
                 let mut last_odo = 0;
                 let mut stress_count = 0;
+                let mut degradation = 0.0;
                 let mut length = 0;
 
                 while let Some(result) = cursor.next().await {
@@ -255,23 +264,76 @@ impl Logger {
                         average_speed += doc.average_speed;
                         last_odo = doc.last_odometer;
                         stress_count += doc.stress;
+                        degradation += self.calculate_degradation(doc.stress);
                         length += 1;
-                        if max_speed.0 < doc.max_speed.0 { max_speed = doc.max_speed; }
+                        if max_speed.0 < doc.max_speed.0 {
+                            max_speed = doc.max_speed;
+                        }
                     }
                 }
+                degradation /= length as f64;
 
-                average_speed /= length;
-
-                Ok(json!({ 
+                Ok(json!({
                     "distance_travelled": distance,
-                    "average_speed": average_speed,
+                    "average_speed": average_speed/length,
                     "stress_count": stress_count,
+                    "degradation": degradation,
                     "last_odometer": last_odo,
                     "max_speed": {
                         "speed": max_speed.0,
                         "hit_at": max_speed.1
-                    } 
-                }).to_string())
+                    }
+                })
+                .to_string())
+            }
+            Err(_) => Err(String::from("An unexpected error occured")),
+        }
+    }
+
+    pub async fn overall_logs(&self, vid: String) -> Result<String, String> {
+        let collection = self
+            .database
+            .clone()
+            .unwrap_or_else(|| panic!("Logger couldn't find active database"))
+            .collection::<Log>(&vid);
+
+        match collection.find(None, None).await {
+            Ok(mut cursor) => {
+                let mut average_speed = 0;
+                let mut distance = 0;
+                let mut max_speed = (0, String::from(""));
+                let mut last_odo = 0;
+                let mut stress_count = 0;
+                let mut degradation = 0.0;
+                let mut length = 0;
+
+                while let Some(result) = cursor.next().await {
+                    if let Ok(doc) = result {
+                        distance += doc.distance;
+                        average_speed += doc.average_speed;
+                        last_odo = doc.last_odometer;
+                        stress_count += doc.stress;
+                        degradation += self.calculate_degradation(doc.stress);
+                        length += 1;
+                        if max_speed.0 < doc.max_speed.0 {
+                            max_speed = doc.max_speed;
+                        }
+                    }
+                }
+                degradation /= length as f64;
+
+                Ok(json!({
+                    "distance_travelled": distance,
+                    "average_speed": average_speed/length,
+                    "stress_count": stress_count,
+                    "degradation": degradation,
+                    "last_odometer": last_odo,
+                    "max_speed": {
+                        "speed": max_speed.0,
+                        "hit_at": max_speed.1
+                    }
+                })
+                .to_string())
             }
             Err(_) => Err(String::from("An unexpected error occured")),
         }

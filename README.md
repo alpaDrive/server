@@ -158,6 +158,90 @@ Routes are mainly for starting a connection with the server. For instance, regis
     * Returns: a websocket connection upgrade to the room. The vehicle is in control of the room. The vehicle will obey all commands sent by the users. However, a user can't control other users in the room.
     * Notes: If the user isn't paired to the vehicle, the attempt will result in a 404 HTTP response. The connection will only be upgraded if there are no internal errors or conflicts.
 
+8. ### Retrieving logs (daily basis)
+    * Request type: POST
+    * Route: `/logs/daily`
+    * Format: JSON
+    
+        ```json
+        {
+            "vid": "<vid of the vehicle>",
+            "date": "<date in DD-MM-YYYY format>"
+        }
+        ```
+    
+    * Returns: a JSON object with the vehicle stats & report for that day
+
+        ```json
+        {
+            "average_speed": 65,
+            "stress_count": 0,
+            "degradation": 0.0,
+            "distance_travelled": 10,
+            "last_odometer": 56000,
+            "max_speed": {
+                "speed": 80,
+                "hit_at": "07:57 PM"
+            }
+        }
+        ```
+
+9. ### Retrieving logs (periodic basis)
+    * Request type: POST
+    * Route: `/logs/periodic`
+    * Format: JSON
+    
+        ```json
+        {
+            "vid": "<vid of the vehicle>",
+            "start": "<start date in DD-MM-YYYY format>",
+            "end": "<end date in DD-MM-YYYY format>"
+        }
+        ```
+    
+    * Returns: a JSON object with the aggregated vehicle stats & report for that period
+
+        ```json
+        {
+            "average_speed": 65,
+            "stress_count": 0,
+            "degradation": 0.0,
+            "distance_travelled": 100,
+            "last_odometer": 56000,
+            "max_speed": {
+                "speed": 80,
+                "hit_at": "07:57 PM"
+            }
+        }
+        ```
+
+10. ### Retrieving logs (overall stats)
+    * Request type: POST
+    * Route: `/logs/overall`
+    * Format: JSON
+    
+        ```json
+        {
+            "vid": "<vid of the vehicle>"
+        }
+        ```
+    
+    * Returns: a JSON object with the aggregated vehicle stats & report since alpaDrive was initially connected
+
+        ```json
+        {
+            "average_speed": 65,
+            "stress_count": 0,
+            "degradation": 0.0,
+            "distance_travelled": 100,
+            "last_odometer": 56000,
+            "max_speed": {
+                "speed": 80,
+                "hit_at": "07:57 PM"
+            }
+        }
+        ```
+
 ## Messaging
 The core purpose of this API is to enable organized messaging through websocket connections for connected clients. As such, all messages follow a standard format across the board.
 
@@ -214,6 +298,8 @@ The general format of such a message is as shown
 >   "speed": "<integer value>", // optional
 >   "rpm": "<integer value>", // optional
 >   "location": "<string value>", // optional
+>   "temp": "<integer value>", // optional
+>   "fuel": "<integer value>", // optional
 >   "odo": "<integer value>",
 >   "stressed": true // or false    
 > }
