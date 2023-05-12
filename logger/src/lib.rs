@@ -1,12 +1,14 @@
-use chrono::{Datelike, Local, NaiveDateTime};
+use chrono::{Datelike, Local};
 use core::fmt;
+use futures_util::stream::StreamExt;
 use mongodb::{
     bson::{doc, oid::ObjectId},
-    options::{ClientOptions, FindOneOptions},
+    options::{ClientOptions, FindOneOptions, FindOptions},
     Client, Collection, Database,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use serde_json::json;
+use std::{collections::HashMap};
 
 pub struct Logger {
     database: Option<Database>,
@@ -26,13 +28,13 @@ pub struct Message {
 #[derive(Serialize, Deserialize, Clone)]
 struct Log {
     _id: Option<ObjectId>,
-    date: NaiveDateTime,
+    date: String,
     average_speed: u32,
     distance: u32,
     stress: u32,
     last_odometer: u32,
     message_count: u32,
-    max_speed: (u32, String) 
+    max_speed: (u32, String),
 }
 
 impl fmt::Display for Message {
@@ -81,6 +83,7 @@ impl Logger {
     // if not present, then returns a (base stat, whether update required)
     async fn get_base_stats(&self, collection: Collection<Log>) -> (Log, bool) {
         let options = FindOneOptions::builder().sort(doc! { "_id": -1 }).build();
+        let today = Local::now().naive_local();
         let default = (
             Log {
                 _id: Some(ObjectId::new()),
@@ -89,8 +92,8 @@ impl Logger {
                 last_odometer: 0,
                 stress: 0,
                 message_count: 0,
-                date: Local::now().naive_local(),
-                max_speed: (0, Local::now().format("%I:%M %p").to_string())
+                date: format!("{}-{}-{}", today.day(), today.month(), today.year()),
+                max_speed: (0, Local::now().format("%I:%M %p").to_string()),
             },
             false,
         );
@@ -99,11 +102,15 @@ impl Logger {
             Ok(value) => match value {
                 Some(log) => {
                     // if the last inserted document is from a previous date then return default
-                    let date = log.date;
+                    let date = log.clone().date;
                     let current_date = Local::now().naive_local();
-                    if date.year() == current_date.year()
-                        && date.month() == current_date.month()
-                        && date.day() == current_date.day()
+                    if date
+                        == format!(
+                            "{}-{}-{}",
+                            current_date.day(),
+                            current_date.month(),
+                            current_date.year()
+                        )
                     {
                         (log, true)
                     } else {
@@ -183,6 +190,90 @@ impl Logger {
                 .insert_one(&base_stats, None)
                 .await
                 .expect("Failed to insert document");
+        }
+    }
+
+    pub async fn dailylogs(&self, date: String, vid: String) -> Result<String, String> {
+        let collection = self
+            .database
+            .clone()
+            .unwrap_or_else(|| panic!("Logger couldn't find an active database"))
+            .collection::<Log>(&vid);
+        let filter = doc! {"date": {"$regex": format!("^{}", &date)}};
+        let options = FindOneOptions::builder().build();
+
+        match collection.find_one(filter, options).await {
+            Ok(result) => match result {
+                Some(result) => Ok(json!({
+                    "average_speed": result.average_speed,
+                    "stress_count": result.stress,
+                    "distance_travelled": result.distance,
+                    "last_odometer": result.last_odometer,
+                    "max_speed": {
+                        "speed": result.max_speed.0,
+                        "hit_at": result.max_speed.1
+                    }
+                })
+                .to_string()),
+                None => Err(String::from("No results were found for this day.")),
+            },
+            Err(_) => Err(String::from("Some bad error occured")),
+        }
+    }
+
+    pub async fn periodiclogs(
+        &self,
+        vid: String,
+        start_date: String,
+        end_date: String,
+    ) -> Result<String, String> {
+        let collection = self
+            .database
+            .clone()
+            .unwrap_or_else(|| panic!("Logger couldn't find active database"))
+            .collection::<Log>(&vid);
+        let filter = doc! {"date": {
+            "$gte": start_date,
+            "$lte": end_date,
+        }};
+
+        match collection
+            .find(filter, FindOptions::builder().build())
+            .await
+        {
+            Ok(mut cursor) => {
+                let mut average_speed = 0;
+                let mut distance = 0;
+                let mut max_speed = (0, String::from(""));
+                let mut last_odo = 0;
+                let mut stress_count = 0;
+                let mut length = 0;
+
+                while let Some(result) = cursor.next().await {
+                    if let Ok(doc) = result {
+                        distance += doc.distance;
+                        average_speed += doc.average_speed;
+                        last_odo = doc.last_odometer;
+                        stress_count += doc.stress;
+                        length += 1;
+                        if max_speed.0 < doc.max_speed.0 { max_speed = doc.max_speed; }
+                    }
+                }
+
+                average_speed /= length;
+
+                Ok(json!({ 
+                    "distance_travelled": distance,
+                    "average_speed": average_speed,
+                    "stress_count": stress_count,
+                    "last_odometer": last_odo,
+                    "max_speed": {
+                        "speed": max_speed.0,
+                        "hit_at": max_speed.1
+                    } 
+                }).to_string())
+            }
+            Err(_) => Err(String::from("An unexpected error occured")),
         }
     }
 }

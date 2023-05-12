@@ -4,11 +4,13 @@ extern crate types;
 use actix::Addr;
 use actix_web::{web::Payload, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
+use logger::Logger;
 use mongodb::{
     bson::{doc, oid::ObjectId},
     Database,
 };
 use serde_json::{json, Value};
+use serde::Deserialize;
 use sockets::{
     sockets::Lobby,
     ws::{Sender, WsConn},
@@ -24,16 +26,18 @@ pub struct Manager {
     db: Database,
     lobby: Addr<Lobby>,
     admins: Arc<RwLock<HashMap<String, String>>>,
-    sessions: Arc<RwLock<usize>>
+    sessions: Arc<RwLock<usize>>,
+    logger: Logger
 }
 
 impl Manager {
-    pub fn start(database: Database, lobby: Addr<Lobby>, admins: Arc<RwLock<HashMap<String, String>>>, sessions: Arc<RwLock<usize>>) -> Manager {
+    pub fn start(database: Database, lobby: Addr<Lobby>, logger: Logger, admins: Arc<RwLock<HashMap<String, String>>>, sessions: Arc<RwLock<usize>>) -> Manager {
         Manager {
             db: database,
             lobby,
             admins,
-            sessions
+            sessions,
+            logger
         }
     }
 
@@ -299,6 +303,45 @@ impl Manager {
                 }
             },
             Err(e) => HttpResponse::InternalServerError().body(json!({"error": "There was an error trying to execute mongodb::collection.find_one()", "stacktrace": format!("{:#?}", e)}).to_string())
+        }
+    }
+
+    // Data management
+
+    pub async fn dailylogs(&self, request: String) -> HttpResponse {
+        #[derive(Deserialize)]
+        struct Format {
+            vid: String,
+            date: String
+        }
+        match serde_json::from_str::<Format>(&request) {
+            Ok(data) => match self.logger.dailylogs(data.date, data.vid).await {
+                Ok(result) => HttpResponse::Ok().body(result),
+                Err(e) => HttpResponse::InternalServerError().body(json!({"error": "Something unexpected happened when trying to fetch logs", "stacktrace": format!("{}", e)}).to_string())
+            },
+            Err(e) => HttpResponse::NotAcceptable().body(json!({
+                "error": "Failed to parse request. Make sure it is a valid JSON payload in the directed format.",
+                "stacktrace": format!("{:?}", e)
+            }).to_string())
+        }
+    }
+
+    pub async fn periodiclogs(&self, request: String) -> HttpResponse {
+        #[derive(Deserialize)]
+        struct Format {
+            vid: String,
+            start: String,
+            end: String
+        }
+        match serde_json::from_str::<Format>(&request) {
+            Ok(data) => match self.logger.periodiclogs(data.vid, data.start, data.end).await {
+                Ok(result) => HttpResponse::Ok().body(result),
+                Err(e) => HttpResponse::InternalServerError().body(json!({"error": "Something unexpected happened when trying to fetch logs", "stacktrace": format!("{}", e)}).to_string())
+            },
+            Err(e) => HttpResponse::NotAcceptable().body(json!({
+                "error": "Failed to parse request. Make sure it is a valid JSON payload in the directed format.",
+                "stacktrace": format!("{:?}", e)
+            }).to_string())
         }
     }
 }
