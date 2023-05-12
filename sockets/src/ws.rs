@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+use logger::Message;
 
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -51,7 +52,7 @@ pub struct ClientMessage {
     pub vid: String,
     pub conn_id: String,
     pub status: String,
-    pub message: String,
+    pub message: Message,
     pub attachments: Vec<String>,
 }
 
@@ -88,9 +89,9 @@ impl ClientMessage {
     }
     fn get_mode(&self) -> Result<Mode, String> {
         // just declaring these common fields to avoid repetition atm. Change later flexibly in the map
-        let common = vec![self.status.clone(), self.conn_id.clone(), self.message.clone()];
+        let common = vec![self.status.clone(), self.conn_id.clone(), self.message.to_string()];
         let map = HashMap::from([
-            ("broadcast", (vec![self.status.clone(), self.message.clone()], Mode::Broadcast)),
+            ("broadcast", (vec![self.status.clone(), self.message.to_string()], Mode::Broadcast)),
             ("whisper", (common.clone(), Mode::Whisper(self.conn_id.clone()))),
             ("action", (common.clone(), Mode::Action)),
             ("request", (common, Mode::Request)),

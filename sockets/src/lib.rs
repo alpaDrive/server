@@ -4,6 +4,7 @@ pub mod ws;
 pub mod sockets {
     use crate::messages::{ClientActorMessage, Connect, Disconnect, WsMessage};
     use crate::ws::{Action, Mode, Sender};
+    use logger::Logger;
     use actix::prelude::{Actor, Handler, Recipient};
     use actix::{Addr, SyncArbiter, SyncContext};
     use actix_web_actors::ws::CloseCode;
@@ -11,6 +12,7 @@ pub mod sockets {
     use std::collections::hash_map::Entry;
     use std::collections::{HashMap, HashSet};
     use std::sync::{Arc, RwLock};
+    use async_std::task;
 
     pub struct Lobby {
         sessions: HashMap<String, Recipient<WsMessage>>,
@@ -18,6 +20,7 @@ pub mod sockets {
         admins: HashMap<String, String>,
         lock: Arc<RwLock<HashMap<String, String>>>,
         sessions_lock: Arc<RwLock<usize>>,
+        logger: Logger
     }
 
     impl Default for Lobby {
@@ -28,6 +31,7 @@ pub mod sockets {
                 admins: HashMap::new(),
                 lock: Arc::new(RwLock::new(HashMap::new())),
                 sessions_lock: Arc::new(RwLock::new(0)),
+                logger: Logger::default()
             }
         }
     }
@@ -40,21 +44,24 @@ pub mod sockets {
                 admins: self.admins.clone(),
                 lock: self.lock.clone(),
                 sessions_lock: self.sessions_lock.clone(),
+                logger: self.logger.clone()
             }
         }
     }
 
     impl Lobby {
-        pub fn new(
+        pub async fn new(
             lock: Arc<RwLock<HashMap<String, String>>>,
             sessions: Arc<RwLock<usize>>,
         ) -> Addr<Self> {
+            let logger = Logger::new().await;
             let lobby = Lobby {
                 sessions: HashMap::new(),
                 rooms: HashMap::new(),
                 admins: HashMap::new(),
                 lock: lock.clone(),
                 sessions_lock: sessions,
+                logger
             };
             let addr = SyncArbiter::start(1, move || lobby.clone());
             addr
@@ -264,7 +271,15 @@ pub mod sockets {
         // echo the message back to all clients
         fn handle(&mut self, msg: ClientActorMessage, _: &mut SyncContext<Self>) -> Self::Result {
             match msg.mode {
-                Mode::Broadcast => self.broadcast(msg.msg.to_string(), msg.room_id.clone(), msg.id),
+                Mode::Broadcast => {
+                    let mut logger = self.logger.clone();
+                    let data = msg.msg.message.clone();
+                    let vid = msg.room_id.clone();
+                    task::spawn(async move {
+                        logger.log(data, vid).await;
+                    });
+                    self.broadcast(msg.msg.to_string(), msg.room_id.clone(), msg.id.clone())
+                },
                 Mode::Whisper(target) => self.whisper(msg.msg.to_string(), msg.room_id, target),
                 _ => self.message_vehicle(msg.room_id.clone(), msg.msg.to_string()),
             }

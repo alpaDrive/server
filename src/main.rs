@@ -4,6 +4,7 @@ use std::{sync::{Arc, RwLock}, collections::HashMap};
 
 pub use crate::manager::Manager;
 use actix_web::{web::{self, Path}, get, post, App, HttpResponse, HttpRequest, HttpServer, Responder};
+use logger::Logger;
 use mongodb::{Client, options::ClientOptions};
 use serde_json::json;
 use sockets::sockets::Lobby;
@@ -91,6 +92,23 @@ async fn refreshvehicle(context: web::Data<Manager>, req_body: String) -> impl R
     }
 }
 
+// data management routes
+
+#[post("/logs/daily")]
+async fn dailylogs(context: web::Data<Manager>, req_body: String) -> impl Responder {
+    context.dailylogs(req_body).await
+}
+
+#[post("/logs/periodic")]
+async fn periodiclogs(context: web::Data<Manager>, req_body: String) -> impl Responder {
+    context.periodiclogs(req_body).await
+}
+
+#[post("/logs/overall")]
+async fn overall_logs(context: web::Data<Manager>, req_body: String) -> impl Responder {
+    context.overall_logs(req_body).await
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     let mut client_options = ClientOptions::parse("mongodb://localhost:8080/").await.unwrap();
@@ -102,12 +120,13 @@ async fn main() -> std::io::Result<()> {
     let av_copy = Arc::clone(&active_vehicles);
     let sessions_copy = Arc::clone(&active_sessions);
 
-    let lobby = Lobby::new(active_vehicles, active_sessions);
+    let lobby = Lobby::new(active_vehicles, active_sessions).await;
+    let logger = Logger::new().await;
     // let lobby = Lobby::default().start();
 
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(Manager::start(database.clone(), lobby.clone(), Arc::clone(&av_copy), Arc::clone(&sessions_copy))))
+            .app_data(web::Data::new(Manager::start(database.clone(), lobby.clone(), logger.clone(), Arc::clone(&av_copy), Arc::clone(&sessions_copy))))
             .service(hello)
             .service(login)
             .service(status)
@@ -117,6 +136,9 @@ async fn main() -> std::io::Result<()> {
             .service(joinvehicle)
             .service(joinuser)
             .service(pair)
+            .service(dailylogs)
+            .service(periodiclogs)
+            .service(overall_logs)
     })
     .bind(("127.0.0.1", 7878))?
     .run()
