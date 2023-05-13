@@ -4,6 +4,7 @@ use std::{sync::{Arc, RwLock}, collections::HashMap};
 
 pub use crate::manager::Manager;
 use actix_web::{web::{self, Path}, get, post, App, HttpResponse, HttpRequest, HttpServer, Responder};
+use actix_files as fs;
 use logger::Logger;
 use mongodb::{Client, options::ClientOptions};
 use serde_json::json;
@@ -22,7 +23,12 @@ use sockets::sockets::Lobby;
 
 #[get("/")]
 async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("alpaDrive API")
+    fs::NamedFile::open_async("./src/landing/index.html").await
+}
+
+#[get("/logo")]
+async fn logo() -> impl Responder {
+    fs::NamedFile::open_async("./src/landing/logo.png").await
 }
 
 #[get("/join/vehicle/{uid}")]
@@ -92,6 +98,11 @@ async fn refreshvehicle(context: web::Data<Manager>, req_body: String) -> impl R
     }
 }
 
+#[post("/vehicle/edit")]
+async fn editvehicle(context: web::Data<Manager>, req_body: String) -> impl Responder {
+    context.editvehicle(req_body).await
+}
+
 // data management routes
 
 #[post("/logs/daily")]
@@ -128,11 +139,13 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(Manager::start(database.clone(), lobby.clone(), logger.clone(), Arc::clone(&av_copy), Arc::clone(&sessions_copy))))
             .service(hello)
+            .service(logo)
             .service(login)
             .service(status)
             .service(signup)
             .service(registervehicle)
             .service(refreshvehicle)
+            .service(editvehicle)
             .service(joinvehicle)
             .service(joinuser)
             .service(pair)

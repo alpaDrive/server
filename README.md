@@ -95,6 +95,32 @@ Routes are mainly for starting a connection with the server. For instance, regis
         }
         ```
 
+5. ### Edit a vehicle
+    * Request type: POST
+    * Route: `/vehicle/edit`
+    * Format: JSON
+
+        ```json
+        {
+            "vid": "644e1ecf1b23abbba13a6f90",
+            "company": "Volkswagen",
+            "model": "Jetta"
+        }
+        ```
+    * Returns: a JSON object containing the updated vehicle document
+        ```json
+        {
+            "success": "The vehicle was updated",
+            "document": {
+                "id": {
+                "$oid": "644e1ecf1b23abbba13a6f90"
+                },
+                "company": "Volkswagen",
+                "model": "Jetta"
+            }
+        }
+        ```
+
 5. ### Refresh the list of paired vehicles
 
     * Request type: POST
