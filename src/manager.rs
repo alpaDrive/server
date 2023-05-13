@@ -281,6 +281,50 @@ impl Manager {
             }
     }
 
+    pub async fn editvehicle(&self, request: String) -> HttpResponse {
+        #[derive(Deserialize)]
+        struct Format {
+            vid: String,
+            company: String,
+            model: String
+        }
+        let collection = self.db.collection::<Vehicle>("vehicles");
+        match serde_json::from_str::<Format>(&request) {
+            Ok(data) => match ObjectId::from_str(&data.vid.clone()) {
+                Ok(vid) => match collection.update_one(doc!{"_id": vid}, doc!{"$set": {"company": data.company.clone(), "model": data.model.clone()}}, None).await {
+                    Ok(result) => {
+                        if result.matched_count <= 0 {
+                            HttpResponse::NotFound().body(json!({"error": "There is no vehicle with the specified vid", "suggestion": "Consider registering it first"}).to_string())
+                        } else {
+                            HttpResponse::Ok().body(json!({
+                                "success": "The vehicle was updated",
+                                "document": {
+                                    "id": {
+                                        "$oid": data.vid
+                                    },
+                                    "company": data.company,
+                                    "model": data.model
+                                }
+                            }).to_string())
+                        }
+                    },
+                    Err(e) => HttpResponse::InternalServerError().body(json!({
+                        "error": "Oops! The server ran into an issue. Failed to update vehicle details.",
+                        "stacktrace": format!("{:?}", e)
+                    }).to_string())
+                },
+                Err(e) => HttpResponse::NotAcceptable().body(json!({
+                    "error": "Failed to parse vid. Make sure it is a valid object ID.",
+                    "stacktrace": format!("{:?}", e)
+                }).to_string())
+            },
+            Err(e) => HttpResponse::NotAcceptable().body(json!({
+                "error": "Failed to parse request. Make sure it is a valid JSON payload in the directed format.",
+                "stacktrace": format!("{:?}", e)
+            }).to_string())
+        }
+    }
+
     pub async fn pair(&self, uid: String, vid: String, request: &HttpRequest, stream: Payload, initial: bool) -> HttpResponse {
         let users = self.db.collection::<User>("users");
         let vehicles = self.db.collection::<Vehicle>("vehicles");
