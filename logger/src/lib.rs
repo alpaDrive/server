@@ -16,11 +16,17 @@ pub struct Logger {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+struct Location {
+    latitude: f64,
+    longitude: f64
+}
+
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Message {
     gear: Option<u32>,
     rpm: Option<u32>,
     speed: Option<u32>,
-    location: Option<String>,
+    location: Option<Location>,
     temp: Option<u32>,
     fuel: Option<u32>,
     odo: u32,
@@ -43,8 +49,8 @@ impl fmt::Display for Message {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{{ gear: {:?}, rpm: {:?}, speed: {:?}, location: {:?}, odo: {}, stressed: {} }}",
-            self.gear, self.rpm, self.speed, self.location, self.odo, self.stressed
+            "{{ gear: {:?}, rpm: {:?}, speed: {:?}, odo: {}, stressed: {} }}",
+            self.gear, self.rpm, self.speed, self.odo, self.stressed
         )
     }
 }

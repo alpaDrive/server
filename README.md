@@ -323,7 +323,10 @@ The general format of such a message is as shown
 >   "gear": "<integer value>", // optional
 >   "speed": "<integer value>", // optional
 >   "rpm": "<integer value>", // optional
->   "location": "<string value>", // optional
+>   "location": {
+>       "latitude": 0.0, // optional float value
+>       "longitude": 0.0 // optional float value 
+>   }, // optional
 >   "temp": "<integer value>", // optional
 >   "fuel": "<integer value>", // optional
 >   "odo": "<integer value>",
