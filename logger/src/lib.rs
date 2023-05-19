@@ -1,4 +1,4 @@
-use chrono::{Datelike, Local};
+use chrono::{Datelike, Local, FixedOffset};
 use core::fmt;
 use futures_util::stream::StreamExt;
 use mongodb::{
@@ -150,16 +150,23 @@ impl Logger {
                 Some(value) => value,
                 None => ObjectId::new(),
             };
-            let distance = message.odo - base_stats.last_odometer;
-            base_stats.distance += distance;
+
+            if message.odo > 0  {
+                let distance = message.odo - base_stats.last_odometer;
+                base_stats.distance += distance;
+            }
             let mut count = base_stats.message_count;
 
             if let Some(speed) = message.speed {
                 if speed > base_stats.max_speed.0 {
-                    base_stats.max_speed = (speed, Local::now().format("%I:%M %p").to_string())
+                    base_stats.max_speed = (speed, Local::now().with_timezone(&FixedOffset::east_opt(5 * 3600 + 30 * 60).unwrap()).format("%I:%M %p").to_string())
                 }
-                base_stats.average_speed =
+
+                if base_stats.average_speed > 0 {
+                    base_stats.average_speed =
                     ((base_stats.average_speed * (count)) + speed) / ((count) + 1);
+                } else { base_stats.average_speed = speed; }
+
                 count += 1;
             }
 
