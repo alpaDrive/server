@@ -42,6 +42,7 @@ struct Log {
     stress: u32,
     last_odometer: u32,
     message_count: u32,
+    sum_speed: u32,
     max_speed: (u32, String),
 }
 
@@ -75,7 +76,7 @@ impl Default for Logger {
 
 impl Logger {
     pub async fn new() -> Self {
-        let mut client_options = ClientOptions::parse("mongodb://localhost:8080/")
+        let mut client_options = ClientOptions::parse("mongodb://localhost:27017/")
             .await
             .unwrap();
         client_options.app_name = Some("alpadrive".to_string());
@@ -100,6 +101,7 @@ impl Logger {
                 last_odometer: 0,
                 stress: 0,
                 message_count: 0,
+                sum_speed: 0,
                 date: format!("{}-{}-{}", today.day(), today.month(), today.year()),
                 max_speed: (0, Local::now().format("%I:%M %p").to_string()),
             },
@@ -152,27 +154,22 @@ impl Logger {
             };
 
             if message.odo > 0  {
-                let distance = message.odo - base_stats.last_odometer;
-                base_stats.distance += distance;
+                base_stats.distance = message.odo - base_stats.last_odometer;
             }
             let mut count = base_stats.message_count;
 
             if let Some(speed) = message.speed {
+                base_stats.sum_speed += speed;
                 if speed > base_stats.max_speed.0 {
                     base_stats.max_speed = (speed, Local::now().with_timezone(&FixedOffset::east_opt(5 * 3600 + 30 * 60).unwrap()).format("%I:%M %p").to_string())
                 }
 
-                if base_stats.average_speed > 0 {
-                    base_stats.average_speed =
-                    ((base_stats.average_speed * (count)) + speed) / ((count) + 1);
-                } else { base_stats.average_speed = speed; }
-
                 count += 1;
+                base_stats.average_speed = base_stats.sum_speed / count;
             }
 
             if message.stressed {
                 base_stats.stress = ((base_stats.stress * (count - 1)) + 1) / (count);
-                count += 1;
             }
 
             base_stats.message_count = count;
@@ -188,6 +185,7 @@ impl Logger {
                             "stress": base_stats.stress,
                             "last_odometer": base_stats.last_odometer,
                             "message_count": base_stats.message_count,
+                            "sum_speed": base_stats.sum_speed,
                             "max_speed": [base_stats.max_speed.0, base_stats.max_speed.1]
                         }
                     },
