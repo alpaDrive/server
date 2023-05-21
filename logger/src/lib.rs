@@ -153,7 +153,7 @@ impl Logger {
                 None => ObjectId::new(),
             };
 
-            if message.odo > 0  {
+            if message.odo > base_stats.last_odometer {
                 base_stats.distance = message.odo - base_stats.last_odometer;
             }
             let mut count = base_stats.message_count;
@@ -236,7 +236,7 @@ impl Logger {
                 .to_string()),
                 None => Err(String::from("No results were found for this day.")),
             },
-            Err(_) => Err(String::from("Some bad error occured")),
+            Err(e) => Err(String::from(format!("{:?}", e))),
         }
     }
 
