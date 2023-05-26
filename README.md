@@ -1,6 +1,17 @@
 # server
-The main web server built on Actix Web
+The central alpaDrive server
 
+## Table Of Contents
+* What's this?
+   * Role in the stack
+   * Architectural Overview
+* [Routes](#routes)
+* [Messaging](#messaging)
+   * [Messaing between clients](#messaging-between-clients)
+   * [Messages from server](#messages-from-server)
+* Setup Guide
+   * Prerequisites
+   * Installation Instructions
 ## Routes
 Routes are mainly for starting a connection with the server. For instance, registering vehicles and users, creating, joining & leaving rooms, etc a.k.a the generic boring stuff. Sadly, we can't skip it. There is no magic that will manage the boring stuff for us.
 1. ### Signup
@@ -408,12 +419,3 @@ and will look somewhat like this
       "error": "an error message, if any"
 }
 ```
-## Known Issue(s)
-
-1. ### Accidental pair when vehicle is inactive
-    - Description: Due to a core architectural flaw in the design, you can now accidentally pair a user with a vehicle without authorization. There is no way for the pairing mechanism to know whether a vehicle is currently active.
-    - Fix: Allow the vehicle to display the pairing QR code **only after confirming it has connected** to the server. That way, no user can send a pair request when the vehicle is inactive.
-    - Severity: High
-    - Tracked by: Issue #1
-
-Make sure to open a new issue only after confirming it exists in the server and is not a bug in your front-end code.
