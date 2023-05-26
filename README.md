@@ -17,7 +17,7 @@
    * Installation Instructions
 
 ## What's this?
-In order for the core functionalities to work, there should be a central messaging platform where users & vehicles can connect to and communicate with each other, in a secure yet performant way. This server is the means for doing so
+In order for the core functionalities to work, there should be a central messaging platform where users & vehicles can connect to and communicate with each other, in a secure yet performant way. This server is the means for doing so.
 
 ### Role in the stack
 This server is the backbone of the alpaDrive system. It has the following core functionalities & duties in the stack as a whole:
@@ -26,9 +26,15 @@ This server is the backbone of the alpaDrive system. It has the following core f
 * Expose an abstracted endpoint set for easy front end development
 
 ### Architectural Overview
+This is written from the high level system architecture shown below. You can find some pointers below highlighting the core idea in a nutshell. The [routes](#routes) & [messaging](#messaging) sections may not even make sense to you if you don't have an understanding of what's going on. Feel free to open a new issue if you find any part of this documentation confusing or hard to understand.
+
+*In a nutshell...*
+  * Each vehicle can register itself to the server & get a corresponding `vid`. It can then create & host a room for itself in the server, which will be identified by this `vid`. The vehicle will be in control of that room.
+  * Users can signup their accounts and pair them to multiple vehicles. They can then join any of the rooms hosted by a paired vehicle. Users can request vehicles to perform certain actions but cannot enforce or command the same.
+  * Any messages being sent over the room can be seen by the server itself. However, messages from one room cannot & should not leak into or be accessible from another as that would be a security issue.
 
 ## Routes
-Routes are mainly for starting a connection with the server. For instance, registering vehicles and users, creating, joining & leaving rooms, etc a.k.a the generic boring stuff. Sadly, we can't skip it. There is no magic that will manage the boring stuff for us.
+Routes are mainly for starting a connection with the server. For instance, registering vehicles and users, creating, joining & leaving rooms, etc a.k.a the generic boring stuff.
 1. ### Signup
     * Request type: POST
     * Route: `/signup`
