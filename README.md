@@ -1,10 +1,13 @@
-# server
-The central alpaDrive server
+<img src="https://github.com/alpaDrive/server/assets/50231856/e5bb1a7c-c2eb-4b0d-b20c-da149b2b0259" alt="alpaDrive Logo" width="250" align="right">
+
+# `server` 🖥️
+
+> This is the central backbone of alpaDrive, running [here](https://alpadrive.selseus.com), and taking care of all the active users & vehicles on a daily basis! We take it pretty seriously, and so should you 😜
 
 ## Table Of Contents
-* What's this?
-   * Role in the stack
-   * Architectural Overview
+* [What's this?](#whats-this)
+   * [Role in the stack](#role-in-the-stack)
+   * [Architectural Overview](#architectural-overview)
 * [Routes](#routes)
 * [Messaging](#messaging)
    * [Messaing between clients](#messaging-between-clients)
@@ -12,6 +15,18 @@ The central alpaDrive server
 * Setup Guide
    * Prerequisites
    * Installation Instructions
+
+## What's this?
+In order for the core functionalities to work, there should be a central messaging platform where users & vehicles can connect to and communicate with each other, in a secure yet performant way. This server is the means for doing so
+
+### Role in the stack
+This server is the backbone of the alpaDrive system. It has the following core functionalities & duties in the stack as a whole:
+* Act as a central messaging platform for users & vehicles
+* Provide a central storage mechanism for storing all user & vehicle data including logs in an organized manner
+* Expose an abstracted endpoint set for easy front end development
+
+### Architectural Overview
+
 ## Routes
 Routes are mainly for starting a connection with the server. For instance, registering vehicles and users, creating, joining & leaving rooms, etc a.k.a the generic boring stuff. Sadly, we can't skip it. There is no magic that will manage the boring stuff for us.
 1. ### Signup
