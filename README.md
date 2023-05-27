@@ -1,8 +1,43 @@
-# server
-The main web server built on Actix Web
+<img src="https://github.com/alpaDrive/server/assets/50231856/e5bb1a7c-c2eb-4b0d-b20c-da149b2b0259" alt="alpaDrive Logo" width="250" align="right">
+
+# `server` 🖥️
+
+> This is the central backbone of alpaDrive, running [here](https://alpadrive.selseus.com), and taking care of all the active users & vehicles on a daily basis! We take it pretty seriously, and so should you 😜
+
+## Table Of Contents
+* [What's this?](#whats-this)
+   * [Role in the stack](#role-in-the-stack)
+   * [Architectural Overview](#architectural-overview)
+* [Routes](#routes)
+* [Messaging](#messaging)
+   * [Messaing between clients](#messaging-between-clients)
+   * [Messages from server](#messages-from-server)
+* [Setup Guide](#setup-guide)
+   * [Prerequisites](#prerequisites)
+   * [Build From Source](#build-from-source)
+   * [Installation Instructions](#installation-instructions)
+
+## What's this?
+In order for the core functionalities to work, there should be a central messaging platform where users & vehicles can connect to and communicate with each other, in a secure yet performant way. This server is the means for doing so.
+
+### Role in the stack
+This server is the backbone of the alpaDrive system. It has the following core functionalities & duties in the stack as a whole:
+* Act as a central messaging platform for users & vehicles
+* Provide a central storage mechanism for storing all user & vehicle data including logs in an organized manner
+* Expose an abstracted endpoint set for easy front end development
+
+### Architectural Overview
+This is written from the high level system architecture shown below. You can find some pointers below highlighting the core idea in a nutshell. The [routes](#routes) & [messaging](#messaging) sections may not even make sense to you if you don't have an understanding of what's going on. Feel free to open a new issue if you find any part of this documentation confusing or hard to understand.
+
+![Architecture](https://github.com/alpaDrive/server/assets/50231856/3eb63d26-cace-4e03-8e61-8d79be6b2043)
+
+*In a nutshell...*
+  * Each vehicle can register itself to the server & get a corresponding `vid`. It can then create & host a room for itself in the server, which will be identified by this `vid`. The vehicle will be in control of that room.
+  * Users can signup their accounts and pair them to multiple vehicles. They can then join any of the rooms hosted by a paired vehicle. Users can request vehicles to perform certain actions but cannot enforce or command the same.
+  * Any messages being sent over the room can be seen by the server itself. However, messages from one room cannot & should not leak into or be accessible from another as that would be a security issue.
 
 ## Routes
-Routes are mainly for starting a connection with the server. For instance, registering vehicles and users, creating, joining & leaving rooms, etc a.k.a the generic boring stuff. Sadly, we can't skip it. There is no magic that will manage the boring stuff for us.
+Routes are mainly for starting a connection with the server. For instance, registering vehicles and users, creating, joining & leaving rooms, etc a.k.a the generic boring stuff.
 1. ### Signup
     * Request type: POST
     * Route: `/signup`
@@ -408,12 +443,57 @@ and will look somewhat like this
       "error": "an error message, if any"
 }
 ```
-## Known Issue(s)
+## Setup Guide
+You can follow this guide to run the server on a machine of your choice. If you want to run the server, install all the prerequisites except the first one & skip to the [installation instructions](#installation-instrcutions). Make sure you're running on a Linux OS, preferably [Ubuntu](https://ubuntu.com/) If you wanna develop or build from source, continue below.
+### Prerequisites
+* The Rust toolchain, including cargo: Install from [here](https://www.rust-lang.org/tools/install) by downloading the `rustup-init` executable for your platform. Alternatively, download & run the standalone installer for your platform from the links provided [here](https://forge.rust-lang.org/infra/other-installation-methods.html#standalone-installers).
+* Git CLI: Install by running the executable for your platform available [here](https://git-scm.com/downloads).
+* MongoDB Community Server: After running the installer found [here](https://www.mongodb.com/try/download/community), make sure that the server is up and running on port **27017**. 
 
-1. ### Accidental pair when vehicle is inactive
-    - Description: Due to a core architectural flaw in the design, you can now accidentally pair a user with a vehicle without authorization. There is no way for the pairing mechanism to know whether a vehicle is currently active.
-    - Fix: Allow the vehicle to display the pairing QR code **only after confirming it has connected** to the server. That way, no user can send a pair request when the vehicle is inactive.
-    - Severity: High
-    - Tracked by: Issue #1
+    > **Note**
+    > 27017 is of course the default port that it'd be running on. If you somehow end up running it on a different port, make sure to update it in the code.
+### Build From Source
+After making sure that all prerequisites are satisfied, follow the steps one by one to build and run the code.
+1. Either clone this repo
 
-Make sure to open a new issue only after confirming it exists in the server and is not a bug in your front-end code.
+    ```
+    git clone https://github.com/alpaDrive/server.git
+    cd server
+    ```
+   or make a new directory and pull the code
+  
+    ```
+    mkdir server && cd server
+    git init
+    git remote add origin https://github.com/alpaDrive/server.git
+    git pull origin main
+    ```
+2. Start the API server
+
+    ```
+    cargo run
+    ```
+  
+The server will now be served on port **7878**, which you can view by visiting [localhost:7878](http://localhost:7878) in your browser. A simple HTML page with a logo can be seen. That's it, happy hacking! :beers:
+  
+### Installation Instructions
+These instructions define how you can run a production server on port 7878. Make sure you have a Linux x86 OS installed.
+1. Clone this repository and change working directory
+  
+    ```
+    git clone https://github.com/alpaDrive/server.git
+    cd server/
+    ```
+2. Switch to the `build` branch
+  
+    ```
+    git fetch origin
+    git checkout build
+    ```
+3. Run the binary directly
+  
+    ```
+    ./release/server
+    ```
+
+You can keep the server running using the `screen` utility. [Here](https://linuxize.com/post/how-to-use-linux-screen/) is a beginner friendly guide for getting started. You can then link your domain name (if you have one) and route the connection using [Nginx](https://www.nginx.com/) for deploying this to the cloud. If you find anything missing or wrong in this documentation, make sure to open an issue, we're happy to help or correct ourselves! 🖤
