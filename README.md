@@ -28,6 +28,8 @@ This server is the backbone of the alpaDrive system. It has the following core f
 ### Architectural Overview
 This is written from the high level system architecture shown below. You can find some pointers below highlighting the core idea in a nutshell. The [routes](#routes) & [messaging](#messaging) sections may not even make sense to you if you don't have an understanding of what's going on. Feel free to open a new issue if you find any part of this documentation confusing or hard to understand.
 
+![Architecture](https://github.com/alpaDrive/server/assets/50231856/3eb63d26-cace-4e03-8e61-8d79be6b2043)
+
 *In a nutshell...*
   * Each vehicle can register itself to the server & get a corresponding `vid`. It can then create & host a room for itself in the server, which will be identified by this `vid`. The vehicle will be in control of that room.
   * Users can signup their accounts and pair them to multiple vehicles. They can then join any of the rooms hosted by a paired vehicle. Users can request vehicles to perform certain actions but cannot enforce or command the same.
