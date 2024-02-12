@@ -20,7 +20,7 @@ jobs:
       run: sudo apt-get install sshpass rsync
     - name: write changes to server
       run: |
-        sshpass -p ${{ secrets.VPS_PASSWORD }} rsync -avz -e 'ssh -o StrictHostKeyChecking=no' target/release/ root@${{ secrets.VPS_HOST }}:/home/alpadrive/server/
+        sshpass -p ${{ secrets.VPS_PASSWORD }} rsync -avz -e 'ssh -o StrictHostKeyChecking=no' target/release/ root@${{ secrets.VPS_HOST }}:/home/alpadrive/server/release;sshpass -p ${{ secrets.VPS_PASSWORD }} rsync -avz -e 'ssh -o StrictHostKeyChecking=no' html/ root@${{ secrets.VPS_HOST }}:/home/alpadrive/server/html
       env:
         VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
     - name: restart server

@@ -2,7 +2,7 @@
 
 # `server` 🖥️
 
-> This is the central backbone of alpaDrive, running [here](https://alpadrive.selseus.com), and taking care of all the active users & vehicles on a daily basis! We take it pretty seriously, and so should you 😜
+> This is the central backbone of alpaDrive, running [here](https://alpadrive.com), and taking care of all the active users & vehicles on a daily basis! We take it pretty seriously, and so should you 😜
 
 ## Table Of Contents
 * [What's this?](#whats-this)
