@@ -38,7 +38,7 @@ async fn icon() -> impl Responder {
 
 #[get("/landing/icons/social")]
 async fn social() -> impl Responder {
-    fs::NamedFile::open_async("./src/landing/logo.png").await
+    fs::NamedFile::open_async("./src/landing/img/logo.png").await
 }
 
 #[get("/join/vehicle/{uid}")]
