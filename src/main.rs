@@ -26,8 +26,18 @@ async fn hello() -> impl Responder {
     fs::NamedFile::open_async("./src/landing/index.html").await
 }
 
-#[get("/logo")]
+#[get("/landing/banner")]
 async fn logo() -> impl Responder {
+    fs::NamedFile::open_async("./src/landing/img/banner.png").await
+}
+
+#[get("/landing/icons/title")]
+async fn icon() -> impl Responder {
+    fs::NamedFile::open_async("./src/landing/img/logo.ico").await
+}
+
+#[get("/landing/icons/social")]
+async fn social() -> impl Responder {
     fs::NamedFile::open_async("./src/landing/logo.png").await
 }
 
@@ -140,6 +150,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(Manager::start(database.clone(), lobby.clone(), logger.clone(), Arc::clone(&av_copy), Arc::clone(&sessions_copy))))
             .service(hello)
             .service(logo)
+            .service(icon)
+            .service(social)
             .service(login)
             .service(status)
             .service(signup)
