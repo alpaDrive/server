@@ -23,22 +23,22 @@ use sockets::sockets::Lobby;
 
 #[get("/")]
 async fn hello() -> impl Responder {
-    fs::NamedFile::open_async("./src/landing/index.html").await
+    fs::NamedFile::open_async("./html/index.html").await
 }
 
 #[get("/landing/banner")]
 async fn logo() -> impl Responder {
-    fs::NamedFile::open_async("./src/landing/img/banner.png").await
+    fs::NamedFile::open_async("./html/img/banner.png").await
 }
 
 #[get("/landing/icons/title")]
 async fn icon() -> impl Responder {
-    fs::NamedFile::open_async("./src/landing/img/logo.ico").await
+    fs::NamedFile::open_async("./html/img/logo.ico").await
 }
 
 #[get("/landing/icons/social")]
 async fn social() -> impl Responder {
-    fs::NamedFile::open_async("./src/landing/img/logo.png").await
+    fs::NamedFile::open_async("./html/img/logo.png").await
 }
 
 #[get("/join/vehicle/{uid}")]
