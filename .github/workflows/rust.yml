@@ -20,12 +20,7 @@ jobs:
       run: sudo apt-get install sshpass rsync
     - name: write changes to server
       run: |
-        sshpass -p ${{ secrets.VPS_PASSWORD }} rsync -avz -e 'ssh -o StrictHostKeyChecking=no' target/release/ root@${{ secrets.VPS_HOST }}:/home/alpadrive/server/
-      env:
-        VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
-    - name: synchronize with git
-      run: |
-        sshpass -p ${{ secrets.VPS_PASSWORD }} ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} 'cd /home/alpadrive/server && git pull origin main'
+        sshpass -p ${{ secrets.VPS_PASSWORD }} rsync -avz -e 'ssh -o StrictHostKeyChecking=no' target/release/ root@${{ secrets.VPS_HOST }}:/home/alpadrive/server/release
       env:
         VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
     - name: restart server
