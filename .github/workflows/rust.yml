@@ -14,16 +14,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Build project
+    - name: build project
       run: cargo build --release --verbose
-    - name: Install sshpass
-      run: sudo apt-get install sshpass
-    - name: Copy release directory to server
+    - name: install tools
+      run: sudo apt-get install sshpass rsync
+    - name: write changes to server
       run: |
-        sshpass -p ${{ secrets.VPS_PASSWORD }} scp -o StrictHostKeyChecking=no -r target/release root@${{ secrets.VPS_HOST }}:/home/alpadrive/server/
+        sshpass -p ${{ secrets.VPS_PASSWORD }} rsync -avz -e 'ssh -o StrictHostKeyChecking=no' target/release/ root@${{ secrets.VPS_HOST }}:/home/alpadrive/server/
       env:
         VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
-    - name: Restart systemd process on server
+    - name: restart server
       run: |
         sshpass -p ${{ secrets.VPS_PASSWORD }} ssh -o StrictHostKeyChecking=no root@${{ secrets.VPS_HOST }} 'sudo systemctl restart server.service'
       env:
