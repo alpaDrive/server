@@ -277,7 +277,7 @@ impl Manager {
         let collection = self.db.collection::<Vehicle>("vehicles");
         match collection.insert_one(vehicle, None).await {
                 Ok(data) => HttpResponse::Ok().body(json!({"success": "Vehicle was registered", "id": data.inserted_id}).to_string()),
-                Err(_) => HttpResponse::InternalServerError().body(json!({"error": "There was an error trying to execute mongodb::collection.insert_one()"}).to_string())
+                Err(e) => HttpResponse::InternalServerError().body(json!({"error": "There was an error trying to execute mongodb::collection.insert_one()", "stacktrace": e.to_string()}).to_string())
             }
     }
 
