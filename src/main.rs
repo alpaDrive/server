@@ -132,7 +132,7 @@ async fn overall_logs(context: web::Data<Manager>, req_body: String) -> impl Res
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let mut client_options = ClientOptions::parse("mongodb://localhost:8080/").await.unwrap();
+    let mut client_options = ClientOptions::parse("mongodb://localhost:27017/").await.unwrap();
     client_options.app_name = Some("alpadrive".to_string());
     let client = Client::with_options(client_options).unwrap();
     let database = client.database("alpadrive");
