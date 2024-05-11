@@ -10,14 +10,14 @@ env:
 jobs:
   build:
 
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
 
     steps:
     - uses: actions/checkout@v3
     - name: Setup Rust
       uses: actions-rs/toolchain@v1
       with:
-        toolchain: 1.75.0  # specify the Rust version here
+        toolchain: 1.75.0
         override: true
     - name: build project
       run: cargo build --release --verbose
@@ -25,7 +25,7 @@ jobs:
       run: sudo apt-get install sshpass rsync
     - name: write changes to server
       run: |
-        sshpass -p ${{ secrets.VPS_PASSWORD }} rsync -avz -e 'ssh -o StrictHostKeyChecking=no' target/release/ root@${{ secrets.VPS_HOST }}:/home/alpadrive/server/release;sshpass -p ${{ secrets.VPS_PASSWORD }} rsync -avz -e 'ssh -o StrictHostKeyChecking=no' html/ root@${{ secrets.VPS_HOST }}:/home/alpadrive/server/html
+        sshpass -p ${{ secrets.VPS_PASSWORD }} rsync -avz -e 'ssh -o StrictHostKeyChecking=no' target/release/ root@${{ secrets.VPS_HOST }}:/home/vishalds/server/release;sshpass -p ${{ secrets.VPS_PASSWORD }} rsync -avz -e 'ssh -o StrictHostKeyChecking=no' html/ root@${{ secrets.VPS_HOST }}:/home/vishalds/server/html
       env:
         VPS_PASSWORD: ${{ secrets.VPS_PASSWORD }}
     - name: restart server
